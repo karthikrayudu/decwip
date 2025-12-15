@@ -1,1 +1,2 @@
-MyClass
+MyClass has beautiful participants
+
