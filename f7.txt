@@ -1,54 +1,47 @@
-An unhandled exception occurred while processing the request.
-RequestFailedException: Resource not found.
-Status: 404 (Not Found)
-ErrorCode: NotFound
+using Azure;
+using Azure.AI.DocumentIntelligence;
+using Form1065Extractor.Models;
 
-Content:
-{"error":{"code":"NotFound","message":"Resource not found.","innererror":{"code":"ModelNotFound","message":"The requested model was not found."}}}
+namespace Form1065Extractor.Services
+{
+    public class AzureFormRecognizerService
+    {
+        private readonly DocumentIntelligenceClient _client;
 
-Headers:
-ms-azure-ai-errorcode: REDACTED
-x-ms-error-code: REDACTED
-x-envoy-upstream-service-time: REDACTED
-apim-request-id: 958ed4ac-1be4-46f9-9e29-d5b78d6d8aad
-Strict-Transport-Security: REDACTED
-X-Content-Type-Options: REDACTED
-x-ms-region: REDACTED
-Date: Fri, 23 Jan 2026 08:56:13 GMT
-Content-Type: application/json; charset=utf-8
-Content-Length: 146
-Azure.Core.HttpPipelineExtensions.ProcessMessageAsync(HttpPipeline pipeline, HttpMessage message, RequestContext requestContext, CancellationToken cancellationToken)
+        public AzureFormRecognizerService(IConfiguration configuration)
+        {
+            _client = new DocumentIntelligenceClient(
+                new Uri(configuration["AzureFormRecognizer:https://intelalabs-formrecognizer.cognitiveservices.azure.com/"]!),
+                new AzureKeyCredential(configuration["AzureFormRecognizer:45c3e3cefb9a4a2abf4beaf78bc5be53"]!)
+            );
+        }
 
-Stack Query Cookies Headers Routing
-RequestFailedException: Resource not found. Status: 404 (Not Found) ErrorCode: NotFound Content: {"error":{"code":"NotFound","message":"Resource not found.","innererror":{"code":"ModelNotFound","message":"The requested model was not found."}}} Headers: ms-azure-ai-errorcode: REDACTED x-ms-error-code: REDACTED x-envoy-upstream-service-time: REDACTED apim-request-id: 958ed4ac-1be4-46f9-9e29-d5b78d6d8aad Strict-Transport-Security: REDACTED X-Content-Type-Options: REDACTED x-ms-region: REDACTED Date: Fri, 23 Jan 2026 08:56:13 GMT Content-Type: application/json; charset=utf-8 Content-Length: 146
-Azure.Core.HttpPipelineExtensions.ProcessMessageAsync(HttpPipeline pipeline, HttpMessage message, RequestContext requestContext, CancellationToken cancellationToken)
-System.Runtime.CompilerServices.ConfiguredValueTaskAwaitable<TResult>+ConfiguredValueTaskAwaiter.GetResult()
-Azure.Core.ProtocolOperationHelpers.ProcessMessageAsync<T>(HttpPipeline pipeline, HttpMessage message, ClientDiagnostics clientDiagnostics, string scopeName, OperationFinalStateVia finalStateVia, RequestContext requestContext, WaitUntil waitUntil, Func<Response, T> resultSelector)
-System.Runtime.CompilerServices.ConfiguredValueTaskAwaitable<TResult>+ConfiguredValueTaskAwaiter.GetResult()
-Azure.AI.DocumentIntelligence.DocumentIntelligenceClient.AnalyzeDocumentAsync(WaitUntil waitUntil, string modelId, RequestContent content, string pages, string locale, string stringIndexType, IEnumerable<DocumentAnalysisFeature> features, IEnumerable<string> queryFields, string outputContentFormat, IEnumerable<AnalyzeOutputOption> output, RequestContext context)
-Azure.AI.DocumentIntelligence.DocumentIntelligenceClient.AnalyzeDocumentAsync(WaitUntil waitUntil, AnalyzeDocumentOptions options, CancellationToken cancellationToken)
-Azure.AI.DocumentIntelligence.DocumentIntelligenceClient.AnalyzeDocumentAsync(WaitUntil waitUntil, string modelId, BinaryData bytesSource, CancellationToken cancellationToken)
-Form1065Extractor.Services.AzureFormRecognizerService.ExtractDataAsync(Stream fileStream) in AzureFormRecognizerService.cs
-+
+
+        public async Task<Form1065Team1Data> ExtractDataAsync(Stream fileStream)
+        {
             Operation<AnalyzeResult> operation = await _client.AnalyzeDocumentAsync(
-Form1065Extractor.Controllers.Form1065Controller.Upload(IFormFile pdffile) in Form1065Controller.cs
-+
-            Form1065Team1Data data = await _service.ExtractDataAsync(stream);
-Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor+TaskOfIActionResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, object controller, object[] arguments)
-System.Runtime.CompilerServices.ValueTaskAwaiter<TResult>.GetResult()
-Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask<IActionResult> actionResultValueTask)
-Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, object state, bool isCompleted)
-Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
-Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(ref State next, ref Scope scope, ref object state, ref bool isCompleted)
-Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, object state, bool isCompleted)
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeNextResourceFilter>g__Awaited|25_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, object state, bool isCompleted)
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.Rethrow(ResourceExecutedContextSealed context)
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.Next(ref State next, ref Scope scope, ref object state, ref bool isCompleted)
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, object state, bool isCompleted)
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
-Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
-Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
+                WaitUntil.Completed,
+                "prebuilt-tax.us.form-1065",
+                BinaryData.FromStream(fileStream)
+            );
 
-Show raw exception details
+            AnalyzeResult result = operation.Value;
+            var doc = result.Documents[0];
+
+            return new Form1065Team1Data
+            {
+                PartnershipName = doc.Fields.GetValueOrDefault("NameOfPartnership")?.Content ?? "",
+                EIN = doc.Fields.GetValueOrDefault("EIN")?.Content ?? "",
+                StreetAddress = doc.Fields.GetValueOrDefault("Address")?.Content ?? "",
+                CityStateZip = doc.Fields.GetValueOrDefault("CityStateZip")?.Content ?? "",
+                BusinessCodeNumber = doc.Fields.GetValueOrDefault("BusinessCodeNumber")?.Content ?? "",
+                ApplicableBoxes = doc.Fields.GetValueOrDefault("CheckApplicableBoxes")?.Content ?? "",
+                TotalAssets = decimal.TryParse(
+                    doc.Fields.GetValueOrDefault("TotalAssets")?.Content,
+                    out var assets) ? assets : 0,
+                TaxYear = 2022
+            };
+        }
+
+    }
+}
