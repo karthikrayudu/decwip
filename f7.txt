@@ -1,6 +1,5 @@
-using System.Diagnostics;
-using Form1065Extractor.Models;
 using Microsoft.AspNetCore.Mvc;
+using Form1065Extractor.Models;
 using Form1065Extractor.Services;
 
 namespace Form1065Extractor.Controllers
@@ -10,34 +9,94 @@ namespace Form1065Extractor.Controllers
         private readonly AzureFormRecognizerService _service;
         private readonly ApplicationDbContext _context;
 
-        public Form1065Controller(AzureFormRecognizerService service, ApplicationDbContext context)
+        public Form1065Controller(
+            AzureFormRecognizerService service,
+            ApplicationDbContext context)
         {
             _service = service;
             _context = context;
         }
-        // read list
+
+        // =========================
+        // READ - List all records
+        // =========================
         public IActionResult Index()
         {
-            return View();
+            var records = _context.Form1065Team1Datas.ToList();
+            return View(records);
         }
+
+        // =========================
+        // CREATE - Upload PDF
+        // =========================
         [HttpPost]
-        public async Task<IActionResult> Upload(IFormFile pdffile)
+        public async Task<IActionResult> Upload(IFormFile pdfFile)
         {
-            // pdf validation
-            if (pdffile == null || Path.GetExtension(pdffile.FileName).ToLower() != ".pdf")
+            // Validation
+            if (pdfFile == null || Path.GetExtension(pdfFile.FileName).ToLower() != ".pdf")
             {
                 ViewBag.Error = "Only PDF files are allowed";
-                return View("Index");
+                return RedirectToAction("Index");
             }
-            using var stream = pdffile.OpenReadStream();
-            // extract data
+
+            using var stream = pdfFile.OpenReadStream();
+
+            // Extract data from Azure
             Form1065Team1Data data = await _service.ExtractDataAsync(stream);
 
-            //save to sql
+            // Audit timestamps
+            data.CreatedAt = DateTime.UtcNow;
+            data.UpdatedAt = DateTime.UtcNow;
+
+            // Save to database
             _context.Form1065Team1Datas.Add(data);
             await _context.SaveChangesAsync();
-            return View("Result", data);
 
+            return RedirectToAction("Index");
+        }
+
+        // =========================
+        // UPDATE - Edit (GET)
+        // =========================
+        public IActionResult Edit(int id)
+        {
+            var data = _context.Form1065Team1Datas.Find(id);
+            if (data == null)
+                return NotFound();
+
+            return View(data);
+        }
+
+        // =========================
+        // UPDATE - Edit (POST)
+        // =========================
+        [HttpPost]
+        public IActionResult Edit(Form1065Team1Data model)
+        {
+            if (!ModelState.IsValid)
+                return View(model);
+
+            model.UpdatedAt = DateTime.UtcNow;
+
+            _context.Form1065Team1Datas.Update(model);
+            _context.SaveChanges();
+
+            return RedirectToAction("Index");
+        }
+
+        // =========================
+        // DELETE
+        // =========================
+        public IActionResult Delete(int id)
+        {
+            var data = _context.Form1065Team1Datas.Find(id);
+            if (data == null)
+                return NotFound();
+
+            _context.Form1065Team1Datas.Remove(data);
+            _context.SaveChanges();
+
+            return RedirectToAction("Index");
         }
     }
 }
