@@ -1,40 +1,54 @@
-@model Form1065Extractor.Models.Form1065Team1Data
+An unhandled exception occurred while processing the request.
+RequestFailedException: Resource not found.
+Status: 404 (Not Found)
+ErrorCode: NotFound
 
-<h2>Edit Form 1065</h2>
+Content:
+{"error":{"code":"NotFound","message":"Resource not found.","innererror":{"code":"ModelNotFound","message":"The requested model was not found."}}}
 
-<form asp-action="Edit" method="post">
-    <input type="hidden" asp-for="Id" />
+Headers:
+ms-azure-ai-errorcode: REDACTED
+x-ms-error-code: REDACTED
+x-envoy-upstream-service-time: REDACTED
+apim-request-id: 124cafbe-aa01-447d-b475-94ab834e2192
+Strict-Transport-Security: REDACTED
+X-Content-Type-Options: REDACTED
+x-ms-region: REDACTED
+Date: Fri, 23 Jan 2026 10:19:20 GMT
+Content-Type: application/json; charset=utf-8
+Content-Length: 146
+Azure.Core.HttpPipelineExtensions.ProcessMessageAsync(HttpPipeline pipeline, HttpMessage message, RequestContext requestContext, CancellationToken cancellationToken)
 
-    <label>Partnership Name</label>
-    <input asp-for="PartnershipName" /><br/>
+Stack Query Cookies Headers Routing
+RequestFailedException: Resource not found. Status: 404 (Not Found) ErrorCode: NotFound Content: {"error":{"code":"NotFound","message":"Resource not found.","innererror":{"code":"ModelNotFound","message":"The requested model was not found."}}} Headers: ms-azure-ai-errorcode: REDACTED x-ms-error-code: REDACTED x-envoy-upstream-service-time: REDACTED apim-request-id: 124cafbe-aa01-447d-b475-94ab834e2192 Strict-Transport-Security: REDACTED X-Content-Type-Options: REDACTED x-ms-region: REDACTED Date: Fri, 23 Jan 2026 10:19:20 GMT Content-Type: application/json; charset=utf-8 Content-Length: 146
+Azure.Core.HttpPipelineExtensions.ProcessMessageAsync(HttpPipeline pipeline, HttpMessage message, RequestContext requestContext, CancellationToken cancellationToken)
+System.Runtime.CompilerServices.ConfiguredValueTaskAwaitable<TResult>+ConfiguredValueTaskAwaiter.GetResult()
+Azure.Core.ProtocolOperationHelpers.ProcessMessageAsync<T>(HttpPipeline pipeline, HttpMessage message, ClientDiagnostics clientDiagnostics, string scopeName, OperationFinalStateVia finalStateVia, RequestContext requestContext, WaitUntil waitUntil, Func<Response, T> resultSelector)
+System.Runtime.CompilerServices.ConfiguredValueTaskAwaitable<TResult>+ConfiguredValueTaskAwaiter.GetResult()
+Azure.AI.DocumentIntelligence.DocumentIntelligenceClient.AnalyzeDocumentAsync(WaitUntil waitUntil, string modelId, RequestContent content, string pages, string locale, string stringIndexType, IEnumerable<DocumentAnalysisFeature> features, IEnumerable<string> queryFields, string outputContentFormat, IEnumerable<AnalyzeOutputOption> output, RequestContext context)
+Azure.AI.DocumentIntelligence.DocumentIntelligenceClient.AnalyzeDocumentAsync(WaitUntil waitUntil, AnalyzeDocumentOptions options, CancellationToken cancellationToken)
+Azure.AI.DocumentIntelligence.DocumentIntelligenceClient.AnalyzeDocumentAsync(WaitUntil waitUntil, string modelId, BinaryData bytesSource, CancellationToken cancellationToken)
+Form1065Extractor.Services.AzureFormRecognizerService.ExtractDataAsync(Stream fileStream) in AzureFormRecognizerService.cs
++
+            Operation<AnalyzeResult> operation = await _client.AnalyzeDocumentAsync(
+Form1065Extractor.Controllers.Form1065Controller.Upload(IFormFile pdfFile) in Form1065Controller.cs
++
+            Form1065Team1Data data = await _service.ExtractDataAsync(stream);
+Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor+TaskOfIActionResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, object controller, object[] arguments)
+System.Runtime.CompilerServices.ValueTaskAwaiter<TResult>.GetResult()
+Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask<IActionResult> actionResultValueTask)
+Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, object state, bool isCompleted)
+Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(ref State next, ref Scope scope, ref object state, ref bool isCompleted)
+Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, object state, bool isCompleted)
+Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeNextResourceFilter>g__Awaited|25_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, object state, bool isCompleted)
+Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.Rethrow(ResourceExecutedContextSealed context)
+Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.Next(ref State next, ref Scope scope, ref object state, ref bool isCompleted)
+Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, object state, bool isCompleted)
+Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
 
-    <label>EIN</label>
-    <input asp-for="EIN" /><br/>
-
-    <label>Street Address</label>
-    <input asp-for="StreetAddress" /><br/>
-
-    <label>City / State / ZIP</label>
-    <input asp-for="CityStateZip" /><br/>
-
-    <label>Business Code</label>
-    <input asp-for="BusinessCodeNumber" /><br/>
-
-    <label>Applicable Boxes</label>
-    <input asp-for="ApplicableBoxes" /><br/>
-
-    <label>Total Assets</label>
-    <input asp-for="TotalAssets" /><br/>
-
-    <label>Tax Year</label>
-    <input asp-for="TaxYear" /><br/>
-
-    <!-- Audit fields (readonly) -->
-    <label>Created At</label>
-    <input asp-for="CreatedAt" readonly /><br/>
-
-    <label>Updated At</label>
-    <input asp-for="UpdatedAt" readonly /><br/>
-
-    <button type="submit">Save</button>
-</form>
+Show raw exception details
