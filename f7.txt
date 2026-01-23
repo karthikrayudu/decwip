@@ -1,23 +1,47 @@
+using Azure;
+using Azure.AI.DocumentIntelligence;
+using Form1065Extractor.Models;
+
+namespace Form1065Extractor.Services
 {
-  "$schema": "https://json.schemastore.org/launchsettings.json",
-  "profiles": {
-    "http": {
-      "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": true,
-      "applicationUrl": "http://localhost:5296",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    },
-    "https": {
-      "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": true,
-      "applicationUrl": "https://localhost:7271;http://localhost:5296",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
+    public class AzureFormRecognizerService
+    {
+        private readonly DocumentIntelligenceClient _client;
+
+        public AzureFormRecognizerService(IConfiguration configuration)
+        {
+            _client = new DocumentIntelligenceClient(
+                new Uri(configuration["AzureFormRecognizer:Endpoint"]!),
+                new AzureKeyCredential(configuration["AzureFormRecognizer:Key"]!)
+            );
+        }
+
+        public async Task<Form1065Team1Data> ExtractDataAsync(Stream fileStream)
+        {
+            AnalyzeDocumentContent content =
+                AnalyzeDocumentContent.FromStream(fileStream);
+
+            AnalyzeResult result = await _client.AnalyzeDocumentAsync(
+                WaitUntil.Completed,
+                "prebuilt-document",
+                content
+            );
+
+            var doc = result.Documents[0];
+
+            return new Form1065Team1Data
+            {
+                PartnershipName = doc.Fields.GetValueOrDefault("NameOfPartnership")?.Content ?? "",
+                EIN = doc.Fields.GetValueOrDefault("EIN")?.Content ?? "",
+                StreetAddress = doc.Fields.GetValueOrDefault("Address")?.Content ?? "",
+                CityStateZip = doc.Fields.GetValueOrDefault("CityStateZip")?.Content ?? "",
+                BusinessCodeNumber = doc.Fields.GetValueOrDefault("BusinessCodeNumber")?.Content ?? "",
+                ApplicableBoxes = doc.Fields.GetValueOrDefault("CheckApplicableBoxes")?.Content ?? "",
+                TotalAssets = decimal.TryParse(
+                    doc.Fields.GetValueOrDefault("TotalAssets")?.Content,
+                    out var assets) ? assets : 0,
+                TaxYear = 2022
+            };
+        }
     }
-  }
 }
