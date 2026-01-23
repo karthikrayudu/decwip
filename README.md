@@ -280,3 +280,45 @@ I can now:
 4️⃣ Create SQL scripts
 5️⃣ Map exact Form-1065 fields
 Just say what you want next and I’ll continue 🚀
+
+
+
+@model Form1065Extractor.Models.Form1065Team1Data
+
+<h2>Extracted Data (Team 1)</h2>
+
+<table border="1" cellpadding="8">
+    <tr>
+        <td><strong>Name of Partnership</strong></td>
+        <td>@Model.PartnershipName</td>
+    </tr>
+    <tr>
+        <td><strong>EIN</strong></td>
+        <td>@Model.EIN</td>
+    </tr>
+    <tr>
+        <td><strong>Street Address</strong></td>
+        <td>@Model.StreetAddress</td>
+    </tr>
+    <tr>
+        <td><strong>City / State / ZIP</strong></td>
+        <td>@Model.CityStateZip</td>
+    </tr>
+    <tr>
+        <td><strong>Business Code Number</strong></td>
+        <td>@Model.BusinessCodeNumber</td>
+    </tr>
+    <tr>
+        <td><strong>Total Assets</strong></td>
+        <td>@Model.TotalAssets</td>
+    </tr>
+    <tr>
+        <td><strong>Applicable Boxes</strong></td>
+        <td>@Model.ApplicableBoxes</td>
+    </tr>
+    <tr>
+        <td><strong>Tax Year</strong></td>
+        <td>@Model.TaxYear</td>
+    </tr>
+</table>
+
