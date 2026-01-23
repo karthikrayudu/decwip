@@ -1,17 +1,37 @@
-{
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
-  },
-  "AllowedHosts": "*"
-}
+Each package is licensed to you by its owner. NuGet is not responsible for, nor does it grant any licenses to, third-party packages. Some packages may include dependencies which are governed by additional licenses. Follow the package source (feed) URL to determine any dependencies.
 
-"AzureFormRecognizer": {
-  "Endpoint": "https://<your-resource-name>.cognitiveservices.azure.com/",
-  "Key": "<your-actual-key>"
-},
-"ConnectionStrings": {
-  "DefaultConnection": "Server=.;Database=localhost;Trusted_Connection=True;TrustServerCertificate=True;"
-}
+Package Manager Console Host Version 7.0.2.3
+
+Type 'get-help NuGet' to see all available NuGet commands.
+
+PM> Add-Migration IntialCreate
+Build started...
+Build failed.
+PM> Add-Migration InitialCreate
+Build started...
+Build failed.
+PM> Add-Migration InitialCreate
+Build started...
+Build succeeded.
+An error occurred while accessing the Microsoft.Extensions.Hosting services. Continuing without the application service provider. Error: Failed to load configuration from file 'C:\Users\gutkarthik\source\repos\Form1065Extractor\Form1065Extractor\appsettings.json'.
+Unable to create a 'DbContext' of type 'ApplicationDbContext'. The exception 'Unable to resolve service for type 'Microsoft.EntityFrameworkCore.DbContextOptions' while attempting to activate 'Form1065Extractor.Models.ApplicationDbContext'.' was thrown while attempting to create an instance. For the different patterns supported at design time, see https://go.microsoft.com/fwlink/?linkid=851728
+PM> add-migration InitialCreate
+Build started...
+Build succeeded.
+An error occurred while accessing the Microsoft.Extensions.Hosting services. Continuing without the application service provider. Error: Failed to load configuration from file 'C:\Users\gutkarthik\source\repos\Form1065Extractor\Form1065Extractor\appsettings.json'.
+Unable to create a 'DbContext' of type 'ApplicationDbContext'. The exception 'Unable to resolve service for type 'Microsoft.EntityFrameworkCore.DbContextOptions' while attempting to activate 'Form1065Extractor.Models.ApplicationDbContext'.' was thrown while attempting to create an instance. For the different patterns supported at design time, see https://go.microsoft.com/fwlink/?linkid=851728
+PM> add -migration InitialCreate
+add : The term 'add' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the 
+spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ add -migration InitialCreate
++ ~~~
+    + CategoryInfo          : ObjectNotFound: (add:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+PM> add-migration InitialCreate
+Build started...
+Build succeeded.
+An error occurred while accessing the Microsoft.Extensions.Hosting services. Continuing without the application service provider. Error: Failed to load configuration from file 'C:\Users\gutkarthik\source\repos\Form1065Extractor\Form1065Extractor\appsettings.json'.
+Unable to create a 'DbContext' of type 'ApplicationDbContext'. The exception 'Unable to resolve service for type 'Microsoft.EntityFrameworkCore.DbContextOptions' while attempting to activate 'Form1065Extractor.Models.ApplicationDbContext'.' was thrown while attempting to create an instance. For the different patterns supported at design time, see https://go.microsoft.com/fwlink/?linkid=851728
+PM> 
