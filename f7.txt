@@ -25,4 +25,37 @@ d-----         1/23/2026     12:08                Form1065Extractor
 -a----         1/23/2026      9:54             90 Form1065Extractor.slnx                                                  
 
 
+PM> cd Form1065Extractor
+PM> dir
+
+
+    Directory: C:\Users\gutkarthik\source\repos\Form1065Extractor\Form1065Extractor
+
+
+Mode                 LastWriteTime         Length Name                                                                    
+----                 -------------         ------ ----                                                                    
+d-----         1/23/2026      9:54                bin                                                                     
+d-----         1/23/2026     11:36                Controllers                                                             
+d-----         1/23/2026     11:35                Models                                                                  
+d-----         1/23/2026     12:17                obj                                                                     
+d-----         1/23/2026      9:54                Properties                                                              
+d-----         1/23/2026     12:08                Services                                                                
+d-----         1/23/2026     10:01                Views                                                                   
+d-----         1/23/2026      9:54                wwwroot                                                                 
+-a----         1/23/2026      9:54            127 appsettings.Development.json                                            
+-a----         1/23/2026     12:08            422 appsettings.json                                                        
+-a----         1/23/2026     12:08            482 Form1065Extractor.csproj                                                
+-a----         1/23/2026      9:54            238 Form1065Extractor.csproj.user                                           
+-a----         1/23/2026     11:52            783 Program.cs                                                              
+
+
+PM> Add-Migration InitialCreate
+Add-Migration : The term 'Add-Migration' is not recognized as the name of a cmdlet, function, script file, or operable 
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Add-Migration InitialCreate
++ ~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Add-Migration:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
 PM> 
