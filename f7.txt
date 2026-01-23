@@ -1,25 +1,19 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Design;
-using Microsoft.Extensions.Configuration;
-
-namespace Form1065Extractor.Models
 {
-    public class ApplicationDbContextFactory
-        : IDesignTimeDbContextFactory<ApplicationDbContext>
-    {
-        public ApplicationDbContext CreateDbContext(string[] args)
-        {
-            IConfiguration configuration = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json")
-                .Build();
-
-            var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-            optionsBuilder.UseSqlServer(
-                configuration.GetConnectionString("DefaultConnection")
-            );
-
-            return new ApplicationDbContext(optionsBuilder.Options);
-        }
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
     }
+  },
+
+  "AllowedHosts": "*",
+
+  "AzureFormRecognizer": {
+    "Endpoint": "https://<your-resource-name>.cognitiveservices.azure.com/",
+    "Key": "<your-azure-form-recognizer-key>"
+  },
+
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost;Database=Form1065DB;Trusted_Connection=True;TrustServerCertificate=True"
+  }
 }
