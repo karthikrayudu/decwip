@@ -18,13 +18,10 @@ namespace Form1065Extractor.Services
 
         public async Task<Form1065Team1Data> ExtractDataAsync(Stream fileStream)
         {
-            AnalyzeDocumentContent content =
-                AnalyzeDocumentContent.FromStream(fileStream);
-
             AnalyzeResult result = await _client.AnalyzeDocumentAsync(
                 WaitUntil.Completed,
                 "prebuilt-document",
-                content
+                BinaryData.FromStream(fileStream)
             );
 
             var doc = result.Documents[0];
