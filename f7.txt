@@ -1,67 +1,23 @@
-using Azure;
-using Azure.AI.DocumentIntelligence;
-using Form1065Extractor.Models;
-
-namespace Form1065Extractor.Services
 {
-    public class AzureFormRecognizerService
-    {
-        private readonly DocumentIntelligenceClient _client;
-
-        public AzureFormRecognizerService(IConfiguration configuration)
-        {
-            string endpoint = configuration["AzureFormRecognizer:Endpoint"]!;
-            string key = configuration["AzureFormRecognizer:Key"]!;
-
-            _client = new DocumentIntelligenceClient(
-                new Uri(endpoint),
-                new AzureKeyCredential(key)
-            );
-        }
-
-        public async Task<Form1065Team1Data> ExtractDataAsync(Stream fileStream)
-        {
-            AnalyzeResult result = await _client.AnalyzeDocumentAsync(
-                WaitUntil.Completed,
-                "prebuilt-document",
-                fileStream
-            );
-
-            var document = result.Documents[0];
-
-            return new Form1065Team1Data
-            {
-                PartnershipName = document.Fields.TryGetValue("NameOfPartnership", out var name)
-                    ? name.Content
-                    : string.Empty,
-
-                EIN = document.Fields.TryGetValue("EIN", out var ein)
-                    ? ein.Content
-                    : string.Empty,
-
-                StreetAddress = document.Fields.TryGetValue("Address", out var address)
-                    ? address.Content
-                    : string.Empty,
-
-                CityStateZip = document.Fields.TryGetValue("CityStateZip", out var city)
-                    ? city.Content
-                    : string.Empty,
-
-                BusinessCodeNumber = document.Fields.TryGetValue("BusinessCodeNumber", out var code)
-                    ? code.Content
-                    : string.Empty,
-
-                TotalAssets = document.Fields.TryGetValue("TotalAssets", out var assets)
-                              && decimal.TryParse(assets.Content, out var totalAssets)
-                                ? totalAssets
-                                : 0,
-
-                ApplicableBoxes = document.Fields.TryGetValue("CheckApplicableBoxes", out var boxes)
-                    ? boxes.Content
-                    : string.Empty,
-
-                TaxYear = 2022
-            };
-        }
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5296",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:7271;http://localhost:5296",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
     }
+  }
 }
