@@ -1,87 +1,28 @@
-This is JFS batch
-Conducted as VILT
-by RPS for Wipro
+Each package is licensed to you by its owner. NuGet is not responsible for, nor does it grant any licenses to, third-party packages. Some packages may include dependencies which are governed by additional licenses. Follow the package source (feed) URL to determine any dependencies.
 
-@model Form1065Extractor.Models.Form1065Team1Data
+Package Manager Console Host Version 7.0.2.3
 
-<h2>Extracted Data (Team 1)</h2>
+Type 'get-help NuGet' to see all available NuGet commands.
 
-<table border="1" cellpadding="8">
-    <tr>
-        <td><strong>Name of Partnership</strong></td>
-        <td>@Model.PartnershipName</td>
-    </tr>
-    <tr>
-        <td><strong>EIN</strong></td>
-        <td>@Model.EIN</td>
-    </tr>
-    <tr>
-        <td><strong>Street Address</strong></td>
-        <td>@Model.StreetAddress</td>
-    </tr>
-    <tr>
-        <td><strong>City / State / ZIP</strong></td>
-        <td>@Model.CityStateZip</td>
-    </tr>
-    <tr>
-        <td><strong>Business Code Number</strong></td>
-        <td>@Model.BusinessCodeNumber</td>
-    </tr>
-    <tr>
-        <td><strong>Total Assets</strong></td>
-        <td>@Model.TotalAssets</td>
-    </tr>
-    <tr>
-        <td><strong>Applicable Boxes</strong></td>
-        <td>@Model.ApplicableBoxes</td>
-    </tr>
-    <tr>
-        <td><strong>Tax Year</strong></td>
-        <td>@Model.TaxYear</td>
-    </tr>
-</table>
+PM> Add-Migration InitialCreate
+Add-Migration : The term 'Add-Migration' is not recognized as the name of a cmdlet, function, script file, or operable 
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Add-Migration InitialCreate
++ ~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Add-Migration:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+PM> dir
 
 
-
-using Form1065Extractor.Models;
-using Form1065Extractor.Services;
-using Microsoft.EntityFrameworkCore;
-
-var builder = WebApplication.CreateBuilder(args);
-
-// MVC
-builder.Services.AddControllersWithViews();
-
-// Database
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-// Azure Form Recognizer Service
-builder.Services.AddScoped<AzureFormRecognizerService>();
-
-var app = builder.Build();
-
-// Middleware
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Home/Error");
-}
-
-app.UseStaticFiles();
-app.UseRouting();
-
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Form1065}/{action=Index}/{id?}");
-
-app.Run();
+    Directory: C:\Users\gutkarthik\source\repos\Form1065Extractor
 
 
-"AzureFormRecognizer": {
-  "Endpoint": "https://<your-resource-name>.cognitiveservices.azure.com/",
-  "Key": "<your-actual-key>"
-},
-"ConnectionStrings": {
-  "DefaultConnection": "Server=.;Database=Form1065DB;Trusted_Connection=True;TrustServerCertificate=True;"
-}
+Mode                 LastWriteTime         Length Name                                                                    
+----                 -------------         ------ ----                                                                    
+d-----         1/23/2026     12:08                Form1065Extractor                                                       
+-a----         1/23/2026      9:54             90 Form1065Extractor.slnx                                                  
 
+
+PM> 
