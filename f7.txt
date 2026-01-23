@@ -1,25 +1,17 @@
-public async Task<Form1065Team1Data> ExtractDataAsync(Stream fileStream)
 {
-    Operation<AnalyzeResult> operation = await _client.AnalyzeDocumentAsync(
-        WaitUntil.Completed,
-        "prebuilt-document",
-        BinaryData.FromStream(fileStream)
-    );
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}
 
-    AnalyzeResult result = operation.Value;
-    var doc = result.Documents[0];
-
-    return new Form1065Team1Data
-    {
-        PartnershipName = doc.Fields.GetValueOrDefault("NameOfPartnership")?.Content ?? "",
-        EIN = doc.Fields.GetValueOrDefault("EIN")?.Content ?? "",
-        StreetAddress = doc.Fields.GetValueOrDefault("Address")?.Content ?? "",
-        CityStateZip = doc.Fields.GetValueOrDefault("CityStateZip")?.Content ?? "",
-        BusinessCodeNumber = doc.Fields.GetValueOrDefault("BusinessCodeNumber")?.Content ?? "",
-        ApplicableBoxes = doc.Fields.GetValueOrDefault("CheckApplicableBoxes")?.Content ?? "",
-        TotalAssets = decimal.TryParse(
-            doc.Fields.GetValueOrDefault("TotalAssets")?.Content,
-            out var assets) ? assets : 0,
-        TaxYear = 2022
-    };
+"AzureFormRecognizer": {
+  "Endpoint": "https://<your-resource-name>.cognitiveservices.azure.com/",
+  "Key": "<your-actual-key>"
+},
+"ConnectionStrings": {
+  "DefaultConnection": "Server=.;Database=localhost;Trusted_Connection=True;TrustServerCertificate=True;"
 }
