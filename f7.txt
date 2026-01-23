@@ -75,3 +75,13 @@ app.MapControllerRoute(
     pattern: "{controller=Form1065}/{action=Index}/{id?}");
 
 app.Run();
+
+
+"AzureFormRecognizer": {
+  "Endpoint": "https://<your-resource-name>.cognitiveservices.azure.com/",
+  "Key": "<your-actual-key>"
+},
+"ConnectionStrings": {
+  "DefaultConnection": "Server=.;Database=Form1065DB;Trusted_Connection=True;TrustServerCertificate=True;"
+}
+
