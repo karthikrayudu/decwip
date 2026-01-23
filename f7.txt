@@ -1,102 +1,40 @@
-using Microsoft.AspNetCore.Mvc;
-using Form1065Extractor.Models;
-using Form1065Extractor.Services;
+@model Form1065Extractor.Models.Form1065Team1Data
 
-namespace Form1065Extractor.Controllers
-{
-    public class Form1065Controller : Controller
-    {
-        private readonly AzureFormRecognizerService _service;
-        private readonly ApplicationDbContext _context;
+<h2>Edit Form 1065</h2>
 
-        public Form1065Controller(
-            AzureFormRecognizerService service,
-            ApplicationDbContext context)
-        {
-            _service = service;
-            _context = context;
-        }
+<form asp-action="Edit" method="post">
+    <input type="hidden" asp-for="Id" />
 
-        // =========================
-        // READ - List all records
-        // =========================
-        public IActionResult Index()
-        {
-            var records = _context.Form1065Team1Datas.ToList();
-            return View(records);
-        }
+    <label>Partnership Name</label>
+    <input asp-for="PartnershipName" /><br/>
 
-        // =========================
-        // CREATE - Upload PDF
-        // =========================
-        [HttpPost]
-        public async Task<IActionResult> Upload(IFormFile pdfFile)
-        {
-            // Validation
-            if (pdfFile == null || Path.GetExtension(pdfFile.FileName).ToLower() != ".pdf")
-            {
-                ViewBag.Error = "Only PDF files are allowed";
-                return RedirectToAction("Index");
-            }
+    <label>EIN</label>
+    <input asp-for="EIN" /><br/>
 
-            using var stream = pdfFile.OpenReadStream();
+    <label>Street Address</label>
+    <input asp-for="StreetAddress" /><br/>
 
-            // Extract data from Azure
-            Form1065Team1Data data = await _service.ExtractDataAsync(stream);
+    <label>City / State / ZIP</label>
+    <input asp-for="CityStateZip" /><br/>
 
-            // Audit timestamps
-            data.CreatedAt = DateTime.UtcNow;
-            data.UpdatedAt = DateTime.UtcNow;
+    <label>Business Code</label>
+    <input asp-for="BusinessCodeNumber" /><br/>
 
-            // Save to database
-            _context.Form1065Team1Datas.Add(data);
-            await _context.SaveChangesAsync();
+    <label>Applicable Boxes</label>
+    <input asp-for="ApplicableBoxes" /><br/>
 
-            return RedirectToAction("Index");
-        }
+    <label>Total Assets</label>
+    <input asp-for="TotalAssets" /><br/>
 
-        // =========================
-        // UPDATE - Edit (GET)
-        // =========================
-        public IActionResult Edit(int id)
-        {
-            var data = _context.Form1065Team1Datas.Find(id);
-            if (data == null)
-                return NotFound();
+    <label>Tax Year</label>
+    <input asp-for="TaxYear" /><br/>
 
-            return View(data);
-        }
+    <!-- Audit fields (readonly) -->
+    <label>Created At</label>
+    <input asp-for="CreatedAt" readonly /><br/>
 
-        // =========================
-        // UPDATE - Edit (POST)
-        // =========================
-        [HttpPost]
-        public IActionResult Edit(Form1065Team1Data model)
-        {
-            if (!ModelState.IsValid)
-                return View(model);
+    <label>Updated At</label>
+    <input asp-for="UpdatedAt" readonly /><br/>
 
-            model.UpdatedAt = DateTime.UtcNow;
-
-            _context.Form1065Team1Datas.Update(model);
-            _context.SaveChanges();
-
-            return RedirectToAction("Index");
-        }
-
-        // =========================
-        // DELETE
-        // =========================
-        public IActionResult Delete(int id)
-        {
-            var data = _context.Form1065Team1Datas.Find(id);
-            if (data == null)
-                return NotFound();
-
-            _context.Form1065Team1Datas.Remove(data);
-            _context.SaveChanges();
-
-            return RedirectToAction("Index");
-        }
-    }
-}
+    <button type="submit">Save</button>
+</form>
