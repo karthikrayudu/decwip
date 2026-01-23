@@ -1,26 +1,43 @@
-Rebuild started at 14:49...
-1>------ Rebuild All started: Project: Form1065Extractor, Configuration: Debug Any CPU ------
-Restored C:\Users\gutkarthik\source\repos\Form1065Extractor\Form1065Extractor\Form1065Extractor.csproj (in 50 ms).
-1>C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets
-1>(5937,5): warning MSB3061: Unable to delete file "C:\Users\gutkarthik\source\repos\Form1065Extractor\Form1065Extractor\
-1>bin\Debug\net10.0\Form1065Extractor.exe". Access to the path 'C:\Users\gutkarthik\source\repos\Form1065Extractor\Form10
-1>65Extractor\bin\Debug\net10.0\Form1065Extractor.exe' is denied. The file is locked by: "Form1065Extractor (27660)"
-1>C:\Users\gutkarthik\source\repos\Form1065Extractor\Form1065Extractor\Models\Form1065Team1Data.cs(8,23,8,26): warning CS
-1>8618: Non-nullable property 'EIN' must contain a non-null value when exiting constructor. Consider adding the 'required
-1>' modifier or declaring the property as nullable.
-1>C:\Users\gutkarthik\source\repos\Form1065Extractor\Form1065Extractor\Models\Form1065Team1Data.cs(9,23,9,36): warning CS
-1>8618: Non-nullable property 'StreetAddress' must contain a non-null value when exiting constructor. Consider adding the
-1> 'required' modifier or declaring the property as nullable.
-1>C:\Users\gutkarthik\source\repos\Form1065Extractor\Form1065Extractor\Models\Form1065Team1Data.cs(10,23,10,35): warning 
-1>CS8618: Non-nullable property 'CityStateZip' must contain a non-null value when exiting constructor. Consider adding th
-1>e 'required' modifier or declaring the property as nullable.
-1>C:\Users\gutkarthik\source\repos\Form1065Extractor\Form1065Extractor\Models\Form1065Team1Data.cs(11,23,11,41): warning 
-1>CS8618: Non-nullable property 'BusinessCodeNumber' must contain a non-null value when exiting constructor. Consider add
-1>ing the 'required' modifier or declaring the property as nullable.
-1>C:\Users\gutkarthik\source\repos\Form1065Extractor\Form1065Extractor\Models\Form1065Team1Data.cs(13,23,13,38): warning 
-1>CS8618: Non-nullable property 'ApplicableBoxes' must contain a non-null value when exiting constructor. Consider adding
-1> the 'required' modifier or declaring the property as nullable.
-1>  Form1065Extractor -> C:\Users\gutkarthik\source\repos\Form1065Extractor\Form1065Extractor\bin\Debug\net10.0\Form1065E
-1>  xtractor.dll
-========== Rebuild All: 1 succeeded, 0 failed, 0 skipped ==========
-========== Rebuild completed at 14:49 and took 01.192 seconds ==========
+using System.Diagnostics;
+using Form1065Extractor.Models;
+using Microsoft.AspNetCore.Mvc;
+using Form1065Extractor.Services;
+
+namespace Form1065Extractor.Controllers
+{
+    public class Form1065Controller : Controller
+    {
+        private readonly AzureFormRecognizerService _service;
+        private readonly ApplicationDbContext _context;
+
+        public Form1065Controller(AzureFormRecognizerService service, ApplicationDbContext context)
+        {
+            _service = service;
+            _context = context;
+        }
+        // read list
+        public IActionResult Index()
+        {
+            return View();
+        }
+        [HttpPost]
+        public async Task<IActionResult> Upload(IFormFile pdffile)
+        {
+            // pdf validation
+            if (pdffile == null || Path.GetExtension(pdffile.FileName).ToLower() != ".pdf")
+            {
+                ViewBag.Error = "Only PDF files are allowed";
+                return View("Index");
+            }
+            using var stream = pdffile.OpenReadStream();
+            // extract data
+            Form1065Team1Data data = await _service.ExtractDataAsync(stream);
+
+            //save to sql
+            _context.Form1065Team1Datas.Add(data);
+            await _context.SaveChangesAsync();
+            return View("Result", data);
+
+        }
+    }
+}
