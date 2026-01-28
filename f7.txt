@@ -1,38 +1,53 @@
-An unhandled exception occurred while processing the request.
-ArgumentNullException: Value cannot be null. (Parameter 'uriString')
-System.ArgumentNullException.Throw(string paramName)
+using Azure;
+using Azure.AI.DocumentIntelligence;
+using Form1065Extractor.Models;
 
-Stack Query Cookies Headers Routing
-ArgumentNullException: Value cannot be null. (Parameter 'uriString')
-System.ArgumentNullException.Throw(string paramName)
-System.ArgumentNullException.ThrowIfNull(object argument, string paramName)
-System.Uri..ctor(string uriString)
-Form1065Extractor.Services.AzureFormRecognizerService..ctor(IConfiguration configuration) in AzureFormRecognizerService.cs
-+
+namespace Form1065Extractor.Services
+{
+    public class AzureFormRecognizerService
+    {
+        private readonly DocumentIntelligenceClient _client;
+
+        public AzureFormRecognizerService(IConfiguration configuration)
+        {
+            var endpoint = configuration["AzureFormRecognizer:Endpoint"];
+            var key = configuration["AzureFormRecognizer:Key"];
+
+            if (string.IsNullOrEmpty(endpoint) || string.IsNullOrEmpty(key))
+                throw new Exception("Azure Form Recognizer configuration is missing");
+
             _client = new DocumentIntelligenceClient(
-System.Reflection.MethodBaseInvoker.InterpretedInvoke_Constructor(object obj, IntPtr* args)
-System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(object obj, Span<object> copyOfArgs, BindingFlags invokeAttr)
-System.Reflection.MethodBaseInvoker.InvokeWithOneArg(object obj, BindingFlags invokeAttr, Binder binder, object[] parameters, CultureInfo culture)
-System.Reflection.RuntimeConstructorInfo.Invoke(BindingFlags invokeAttr, Binder binder, object[] parameters, CultureInfo culture)
-Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
-Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
-Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
-Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
-Microsoft.Extensions.DependencyInjection.ServiceLookup.DynamicServiceProviderEngine+<>c__DisplayClass2_0.<RealizeService>b__0(ServiceProviderEngineScope scope)
-Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
-Microsoft.Extensions.DependencyInjection.ServiceLookup.ServiceProviderEngineScope.GetService(Type serviceType)
-lambda_method2(Closure , IServiceProvider , object[] )
-Microsoft.AspNetCore.Mvc.Controllers.ControllerFactoryProvider+<>c__DisplayClass6_0.<CreateControllerFactory>g__CreateController|0(ControllerContext controllerContext)
-Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(ref State next, ref Scope scope, ref object state, ref bool isCompleted)
-Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeNextResourceFilter>g__Awaited|25_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, object state, bool isCompleted)
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.Rethrow(ResourceExecutedContextSealed context)
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.Next(ref State next, ref Scope scope, ref object state, ref bool isCompleted)
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.InvokeFilterPipelineAsync()
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
-Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
-Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
+                new Uri(endpoint),
+                new AzureKeyCredential(key)
+            );
+        }
 
-Show raw exception details
+        public async Task<Form1065Data> ExtractDataAsync(Stream fileStream)
+        {
+            var operation = await _client.AnalyzeDocumentAsync(
+                WaitUntil.Completed,
+                "prebuilt-document",
+                BinaryData.FromStream(fileStream)
+            );
+
+            var result = operation.Value;
+            var doc = result.Documents.First();
+
+            return new Form1065Data
+            {
+                PartnershipName = doc.Fields.GetValueOrDefault("NameOfPartnership")?.Content ?? "",
+                EIN = doc.Fields.GetValueOrDefault("EIN")?.Content ?? "",
+                StreetAddress = doc.Fields.GetValueOrDefault("Address")?.Content ?? "",
+                CityStateZip = doc.Fields.GetValueOrDefault("CityStateZip")?.Content ?? "",
+                BusinessCodeNumber = doc.Fields.GetValueOrDefault("BusinessCodeNumber")?.Content ?? "",
+                TotalAssets = decimal.TryParse(
+                    doc.Fields.GetValueOrDefault("TotalAssets")?.Content,
+                    out var assets) ? assets : 0,
+                ApplicableBoxes = "",
+                TaxYear = DateTime.UtcNow.Year,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+        }
+    }
+}
