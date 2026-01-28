@@ -1,51 +1,85 @@
-/*using Azure;
+using Azure;
 using Azure.AI.DocumentIntelligence;
+using Azure.AI.DocumentIntelligence.Models;
 using Form1065Extractor.Models;
 
 namespace Form1065Extractor.Services
 {
-    public class AzureFormRecognizerService
+    public class AzureDocumentIntelligenceService
     {
         private readonly DocumentIntelligenceClient _client;
 
-        public AzureFormRecognizerService(IConfiguration configuration)
+        public AzureDocumentIntelligenceService(IConfiguration configuration)
         {
             _client = new DocumentIntelligenceClient(
-                new Uri(configuration["AzureFormRecognizer:Endpoint"]!),
-                new AzureKeyCredential(configuration["AzureFormRecognizer:Key"]!)
+                new Uri(configuration["AzureAI:Endpoint"]!),
+                new AzureKeyCredential(configuration["AzureAI:ApiKey"]!)
             );
         }
 
-
-        public async Task<Form1065Data> ExtractDataAsync(Stream fileStream)
+        public async Task<Form1065ExtractedData> ExtractDataAsync(Stream fileStream)
         {
-            Operation<AnalyzeResult> operation = await _client.AnalyzeDocumentAsync(
-                WaitUntil.Completed,
-                "prebuilt-tax.us.1065",
-                BinaryData.FromStream(fileStream)
-            );
+            AnalyzeDocumentOperation operation =
+                await _client.AnalyzeDocumentAsync(
+                    WaitUntil.Completed,
+                    "prebuilt-invoice",
+                    BinaryData.FromStream(fileStream),
+                    new AnalyzeDocumentOptions
+                    {
+                        Features = { DocumentAnalysisFeature.KeyValuePairs }
+                    }
+                );
 
             AnalyzeResult result = operation.Value;
-            var doc = result.Documents[0];
-            foreach (var field in doc.Fields)
+
+            var data = new Form1065ExtractedData();
+
+            foreach (var kv in result.KeyValuePairs)
             {
-                Console.WriteLine($"{field.Key}=> {field.Value.Content}");
+                if (kv.Key == null || kv.Value == null)
+                    continue;
+
+                string key = kv.Key.Content;
+                string value = kv.Value.Content;
+
+                if (key == "Name of partnership")
+                    data.Name_of_partnership = value;
+
+                if (key == "D Employer identification number")
+                    data.EIN = value;
+
+                if (key == "Number, street, and room or suite no. If a P.O. box, see instructions.")
+                    data.Number_street_and_room_suite_no = value;
+
+                if (key.Contains("City or town"))
+                    data.City_town_state_province_country_zip = value;
+
+                if (key == "C Business code number")
+                    data.Business_code_number = value;
+
+                if (key.Contains("Total assets"))
+                    data.Total_assets = value.Length > 2 ? value.Substring(2) : value;
+
+                if (key.Contains("beginning"))
+                    data.Tax_Year = value.Length >= 4 ? value[^4..] : value;
+
+                if (key.Contains("Initial return") && value.Contains("selected"))
+                    data.Initial_return = 1;
+
+                if (key.Contains("Final return") && value.Contains("selected"))
+                    data.Final_return = 1;
+
+                if (key.Contains("Name change") && value.Contains("selected"))
+                    data.Name_Change = 1;
+
+                if (key.Contains("Address change") && value.Contains("selected"))
+                    data.Address_change = 1;
+
+                if (key.Contains("Amended return") && value.Contains("selected"))
+                    data.Amended_return = 1;
             }
 
-            return new Form1065Data
-            {
-                PartnershipName = doc.Fields.GetValueOrDefault("PartnershipName")?.Content ?? "",
-                EIN = doc.Fields.GetValueOrDefault("EmployerIdentificationNumber")?.Content ?? "",
-                StreetAddress = doc.Fields.GetValueOrDefault("AddressStreet")?.Content ?? "",
-                CityStateZip = doc.Fields.GetValueOrDefault("AddressCityStateZip")?.Content ?? "",
-                BusinessCodeNumber = doc.Fields.GetValueOrDefault("BusinessCode")?.Content ?? "",
-                ApplicableBoxes = doc.Fields.GetValueOrDefault("ReturnType")?.Content ?? "",
-                TotalAssets = decimal.TryParse(
-                    doc.Fields.GetValueOrDefault("TotalAssets")?.Content,
-                    out var assets) ? assets : 0,
-                TaxYear = 2022
-            };
+            return data;
         }
-
     }
-}*/
+}
