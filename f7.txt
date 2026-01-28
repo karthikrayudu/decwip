@@ -1,54 +1,112 @@
-An unhandled exception occurred while processing the request.
-RequestFailedException: Resource not found.
-Status: 404 (Not Found)
-ErrorCode: NotFound
+"""
+This code sample shows Prebuilt Read operations with the Azure AI Document Intelligence client library.
+The async versions of the samples require Python 3.8 or later.
 
-Content:
-{"error":{"code":"NotFound","message":"Resource not found.","innererror":{"code":"ModelNotFound","message":"The requested model was not found."}}}
+To learn more, please visit the documentation - Quickstart: Document Intelligence (formerly Form Recognizer) SDKs
+https://learn.microsoft.com/azure/ai-services/document-intelligence/quickstarts/get-started-sdks-rest-api?pivots=programming-language-python
+"""
+# Azure credentials and features import
+from azure.core.credentials import AzureKeyCredential
+from azure.ai.documentintelligence import DocumentIntelligenceClient
+from azure.ai.documentintelligence.models import DocumentAnalysisFeature
+# to input file as an arg we use sys
+import sys
+# to output the details as json file we use this module to dump the information
+import json
 
-Headers:
-ms-azure-ai-errorcode: REDACTED
-x-ms-error-code: REDACTED
-x-envoy-upstream-service-time: REDACTED
-apim-request-id: 124cafbe-aa01-447d-b475-94ab834e2192
-Strict-Transport-Security: REDACTED
-X-Content-Type-Options: REDACTED
-x-ms-region: REDACTED
-Date: Fri, 23 Jan 2026 10:19:20 GMT
-Content-Type: application/json; charset=utf-8
-Content-Length: 146
-Azure.Core.HttpPipelineExtensions.ProcessMessageAsync(HttpPipeline pipeline, HttpMessage message, RequestContext requestContext, CancellationToken cancellationToken)
+"""
+Remember to remove the key from your code when you're done, and never post it publicly. For production, use
+secure methods to store and access your credentials. For more information, see 
+https://docs.microsoft.com/en-us/azure/cognitive-services/cognitive-services-security?tabs=command-line%2Ccsharp#environment-variables-and-application-configuration
+"""
 
-Stack Query Cookies Headers Routing
-RequestFailedException: Resource not found. Status: 404 (Not Found) ErrorCode: NotFound Content: {"error":{"code":"NotFound","message":"Resource not found.","innererror":{"code":"ModelNotFound","message":"The requested model was not found."}}} Headers: ms-azure-ai-errorcode: REDACTED x-ms-error-code: REDACTED x-envoy-upstream-service-time: REDACTED apim-request-id: 124cafbe-aa01-447d-b475-94ab834e2192 Strict-Transport-Security: REDACTED X-Content-Type-Options: REDACTED x-ms-region: REDACTED Date: Fri, 23 Jan 2026 10:19:20 GMT Content-Type: application/json; charset=utf-8 Content-Length: 146
-Azure.Core.HttpPipelineExtensions.ProcessMessageAsync(HttpPipeline pipeline, HttpMessage message, RequestContext requestContext, CancellationToken cancellationToken)
-System.Runtime.CompilerServices.ConfiguredValueTaskAwaitable<TResult>+ConfiguredValueTaskAwaiter.GetResult()
-Azure.Core.ProtocolOperationHelpers.ProcessMessageAsync<T>(HttpPipeline pipeline, HttpMessage message, ClientDiagnostics clientDiagnostics, string scopeName, OperationFinalStateVia finalStateVia, RequestContext requestContext, WaitUntil waitUntil, Func<Response, T> resultSelector)
-System.Runtime.CompilerServices.ConfiguredValueTaskAwaitable<TResult>+ConfiguredValueTaskAwaiter.GetResult()
-Azure.AI.DocumentIntelligence.DocumentIntelligenceClient.AnalyzeDocumentAsync(WaitUntil waitUntil, string modelId, RequestContent content, string pages, string locale, string stringIndexType, IEnumerable<DocumentAnalysisFeature> features, IEnumerable<string> queryFields, string outputContentFormat, IEnumerable<AnalyzeOutputOption> output, RequestContext context)
-Azure.AI.DocumentIntelligence.DocumentIntelligenceClient.AnalyzeDocumentAsync(WaitUntil waitUntil, AnalyzeDocumentOptions options, CancellationToken cancellationToken)
-Azure.AI.DocumentIntelligence.DocumentIntelligenceClient.AnalyzeDocumentAsync(WaitUntil waitUntil, string modelId, BinaryData bytesSource, CancellationToken cancellationToken)
-Form1065Extractor.Services.AzureFormRecognizerService.ExtractDataAsync(Stream fileStream) in AzureFormRecognizerService.cs
-+
-            Operation<AnalyzeResult> operation = await _client.AnalyzeDocumentAsync(
-Form1065Extractor.Controllers.Form1065Controller.Upload(IFormFile pdfFile) in Form1065Controller.cs
-+
-            Form1065Team1Data data = await _service.ExtractDataAsync(stream);
-Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor+TaskOfIActionResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, object controller, object[] arguments)
-System.Runtime.CompilerServices.ValueTaskAwaiter<TResult>.GetResult()
-Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask<IActionResult> actionResultValueTask)
-Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, object state, bool isCompleted)
-Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
-Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(ref State next, ref Scope scope, ref object state, ref bool isCompleted)
-Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, object state, bool isCompleted)
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeNextResourceFilter>g__Awaited|25_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, object state, bool isCompleted)
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.Rethrow(ResourceExecutedContextSealed context)
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.Next(ref State next, ref Scope scope, ref object state, ref bool isCompleted)
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, object state, bool isCompleted)
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
-Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
-Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
+# Endpoint and key details
+endpoint = "https://intelalabs-formrecognizer.cognitiveservices.azure.com/"
+key = "45c3e3cefb9a4a2abf4beaf78bc5be53"
 
-Show raw exception details
+# this function is used to get key value pairs and output them into json file
+def analyze_read():
+    
+
+    document_intelligence_client  = DocumentIntelligenceClient(
+        endpoint=endpoint, credential=AzureKeyCredential(key)
+    )
+    # takes the file path 
+    path = sys.argv[1]
+
+    # opens the path as read binary
+    with open(path , "rb") as form:
+        poller = document_intelligence_client.begin_analyze_document(
+            "prebuilt-invoice", form, features=[DocumentAnalysisFeature.KEY_VALUE_PAIRS]
+        )
+    result = poller.result()
+
+    # dict to store the required fields 
+    kv_dict = {
+
+        "Name_of_partnership" : "",
+        "EIN" : "",
+        "Number_street_and_room_suite_no" : "",
+        "City_town_state_province_country_zip" : "",
+        "Business_code_number" : "",
+        "Total_assets" : "",
+        "Tax_Year" : "",
+        "Initial_return" : 0,
+        "Final_return" : 0,
+        "Name_Change" : 0,
+        "Address_change" : 0,
+        "Amended_return" : 0
+    } 
+    # extracts the data points and store them in the dict accordingly
+    for kv in result.key_value_pairs:
+        if kv.key:
+            if kv.value:
+                if kv.key.content == "Name of partnership":
+                    kv_dict["Name_of_partnership"] = kv.value.content
+                if kv.key.content == "D Employer identification number":
+                    kv_dict["EIN"] = kv.value.content
+                if kv.key.content == "Number, street, and room or suite no. If a P.O. box, see instructions.":
+                    kv_dict["Number_street_and_room_suite_no"] = kv.value.content
+                if kv.key.content == "Print\nCity or town, state or province, country, and ZIP or foreign postal code":
+                    kv_dict["City_town_state_province_country_zip"] = kv.value.content
+                if kv.key.content == "C Business code number":
+                    kv_dict["Business_code_number"] = kv.value.content
+                if kv.key.content == "F Total assets\n(see instructions)":
+                    kv_dict["Total_assets"] = kv.value.content[2:]
+                if kv.key.content == "beginning":
+                    kv_dict["Tax_Year"] = kv.value.content[-5:-1]
+                if kv.key.content == "(1)\nInitial return" and kv.value.content == ":selected:":
+                    kv_dict["Initial_return"] = 1
+                if kv.key.content == "(2)\nFinal return" and kv.value.content == ":selected:":
+                    kv_dict["Final_return"] = 1
+                if kv.key.content == "(3)\nName change" and kv.value.content == ":selected:":
+                    kv_dict["Name_Change"] = 1
+                if kv.key.content == "(4)\nAddress change" and kv.value.content == ":selected:":
+                    kv_dict["Address_change"] = 1
+                if kv.key.content == "(5)\nAmended return" and kv.value.content == ":selected:":
+                    kv_dict["Amended_return"] = 1
+
+
+
+                
+
+    # for kv in result.key_value_pairs:
+    #     if kv.key:
+    #         if kv.value:
+    #             if kv.key.content == "F Total assets\n(see instructions)" :
+
+    #                 kv_dict["Total_assets"] = int(kv.value.content[2:])
+    #                 print(f"{kv.key.content} : {kv.value.content}")
+                
+    # print(kv_dict)
+
+
+    # opens the json file and dumps the information.
+    with open("output.json" , "w", encoding="utf-8") as f:
+        json.dump(kv_dict, f, ensure_ascii=False, indent= 2)
+
+
+    
+
+if __name__ == "__main__":
+    analyze_read()
