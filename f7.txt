@@ -1,10 +1,26 @@
 An unhandled exception occurred while processing the request.
-InvalidOperationException: Unable to resolve service for type 'Form1065Extractor.Services.AzureFormRecognizerService' while attempting to activate 'Form1065Extractor.Controllers.Form1065Controller'.
-Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+ArgumentNullException: Value cannot be null. (Parameter 'uriString')
+System.ArgumentNullException.Throw(string paramName)
 
 Stack Query Cookies Headers Routing
-InvalidOperationException: Unable to resolve service for type 'Form1065Extractor.Services.AzureFormRecognizerService' while attempting to activate 'Form1065Extractor.Controllers.Form1065Controller'.
-Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+ArgumentNullException: Value cannot be null. (Parameter 'uriString')
+System.ArgumentNullException.Throw(string paramName)
+System.ArgumentNullException.ThrowIfNull(object argument, string paramName)
+System.Uri..ctor(string uriString)
+Form1065Extractor.Services.AzureFormRecognizerService..ctor(IConfiguration configuration) in AzureFormRecognizerService.cs
++
+            _client = new DocumentIntelligenceClient(
+System.Reflection.MethodBaseInvoker.InterpretedInvoke_Constructor(object obj, IntPtr* args)
+System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(object obj, Span<object> copyOfArgs, BindingFlags invokeAttr)
+System.Reflection.MethodBaseInvoker.InvokeWithOneArg(object obj, BindingFlags invokeAttr, Binder binder, object[] parameters, CultureInfo culture)
+System.Reflection.RuntimeConstructorInfo.Invoke(BindingFlags invokeAttr, Binder binder, object[] parameters, CultureInfo culture)
+Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+Microsoft.Extensions.DependencyInjection.ServiceLookup.DynamicServiceProviderEngine+<>c__DisplayClass2_0.<RealizeService>b__0(ServiceProviderEngineScope scope)
+Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+Microsoft.Extensions.DependencyInjection.ServiceLookup.ServiceProviderEngineScope.GetService(Type serviceType)
 lambda_method2(Closure , IServiceProvider , object[] )
 Microsoft.AspNetCore.Mvc.Controllers.ControllerFactoryProvider+<>c__DisplayClass6_0.<CreateControllerFactory>g__CreateController|0(ControllerContext controllerContext)
 Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(ref State next, ref Scope scope, ref object state, ref bool isCompleted)
