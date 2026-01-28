@@ -1,19 +1,79 @@
-using System;
-namespace Form1065Extractor.Models
-{
-    public class Form1065Data
-    {
-        public int Id { get; set; }
-        public string PartnershipName { get; set; } = "";
-        public string EIN { get; set; }
-        public string StreetAddress { get; set; }
-        public string CityStateZip { get; set; }
-        public String BusinessCodeNumber { get; set; }
-        public decimal TotalAssets { get; set; }
-        public String ApplicableBoxes {  get; set; }
-        public int TaxYear { get; set; }
+using Azure;
+using Azure.AI.DocumentIntelligence;
+using Azure.AI.DocumentIntelligence.Models;
+using Form1065Extractor.Models;
 
-        public DateTime CreatedAt { get; set; }
-        public DateTime UpdatedAt { get;set;  }
+namespace Form1065Extractor.Services
+{
+    public class AzureFormRecognizerService
+    {
+        private readonly DocumentIntelligenceClient _client;
+
+        public AzureFormRecognizerService(IConfiguration configuration)
+        {
+            _client = new DocumentIntelligenceClient(
+                new Uri(configuration["AzureAI:Endpoint"]!),
+                new AzureKeyCredential(configuration["AzureAI:ApiKey"]!)
+            );
+        }
+
+        public async Task<Form1065Data> ExtractDataAsync(Stream fileStream)
+        {
+            AnalyzeDocumentOperation operation =
+                await _client.AnalyzeDocumentAsync(
+                    WaitUntil.Completed,
+                    "prebuilt-invoice",
+                    BinaryData.FromStream(fileStream),
+                    new AnalyzeDocumentOptions
+                    {
+                        Features = { DocumentAnalysisFeature.KeyValuePairs }
+                    }
+                );
+
+            AnalyzeResult result = operation.Value;
+
+            var data = new Form1065Data();
+
+            foreach (var kv in result.KeyValuePairs)
+            {
+                if (kv.Key == null || kv.Value == null)
+                    continue;
+
+                string key = kv.Key.Content;
+                string value = kv.Value.Content;
+
+                if (key == "Name of partnership")
+                    data.PartnershipName = value;
+
+                if (key == "D Employer identification number")
+                    data.EIN = value;
+
+                if (key.Contains("Number, street"))
+                    data.StreetAddress = value;
+
+                if (key.Contains("City or town"))
+                    data.CityStateZip = value;
+
+                if (key == "C Business code number")
+                    data.BusinessCodeNumber = value;
+
+                if (key.Contains("Total assets"))
+                    data.TotalAssets = decimal.TryParse(
+                        value.Replace("$", "").Replace(",", ""),
+                        out var assets) ? assets : 0;
+
+                if (key.Contains("Initial return") && value.Contains("selected"))
+                    data.ApplicableBoxes += "Initial Return ";
+
+                if (key.Contains("Final return") && value.Contains("selected"))
+                    data.ApplicableBoxes += "Final Return ";
+            }
+
+            data.TaxYear = DateTime.UtcNow.Year;
+            data.CreatedAt = DateTime.UtcNow;
+            data.UpdatedAt = DateTime.UtcNow;
+
+            return data;
+        }
     }
 }
