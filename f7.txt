@@ -33,3 +33,9 @@ llm.invoke("who is cm of Telangana?").content
 
 system_prompt=""" you are expert in analyzing user query, refer user query and use tool "web_search" to fetch latest information from web based and use tool "six_digit_random_number" to generate 6 digit random number"""
 agent=create_agent(model=llm,tools=[web_search,six_digit_random_number],system_prompt= system_prompt)
+
+
+from langchain.messages import HumanMessage
+message=HumanMessage(content="what is capital of india?")
+result=agent.invoke({"message":message})
+print(result["message"][-1])
