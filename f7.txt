@@ -1,1 +1,31 @@
 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
+
+pip install langchain
+ 
+ 
+pip install langchain-openai
+ 
+ 
+from langchain_openai import ChatOpenAI
+llm = ChatOpenAI(
+    model = "gpt-4.1-mini",
+    api_key="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"
+)
+ 
+ 
+llm.invoke("what is capital of India?").content
+ 
+ 
+pip install langchain-groq
+ 
+ 
+from langchain_groq import ChatGroq
+llm = ChatGroq(
+    model = "llama-3.1-8b-instant",
+    api_key="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")
+ 
+ 
+llm.invoke("what is capital of India?").content
+ 
+ 
+llm.invoke("who is cm of Telangana?").content
