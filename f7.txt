@@ -1,10 +1,17 @@
-class Program
-{
-    static void Main(string[] args)
-    {
-        string folderPath = @"C:\YourProjectPath";   // 👈 your project folder
-        string packageName = "Newtonsoft.Json";      // 👈 your package namespace
+using System;
+using System.Collections.Generic;
+using System.Text;
 
-        PackageUsageFinder.FindUsage(folderPath, packageName);
+namespace roslyn
+{
+    class userinput
+        {
+            static void Main(string[] args)
+            {
+                string folderPath = @"C:\R\Projects\NuGetPackageAnalyzer\EntityAttribute_POC";   // 👈 your project folder
+                string packageName = "System.Xml.Linq";      // 👈 your package namespace
+
+                PackageUsageFinder.FindUsage(folderPath, packageName);
+            }
+        }
     }
-}
