@@ -1,1 +1,43 @@
-System.NullReferenceException: 'Object reference not set to an instance of an object.'
+using System;
+using System.IO;
+using System.Linq;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+class RoslynFileAnalyzer
+{
+    static void Main()
+    {
+        // 👉 Give your project folder path here
+        string folderPath = @"C:\YourProjectPath";
+
+        var files = Directory.GetFiles(folderPath, "*.cs", SearchOption.AllDirectories);
+
+        foreach (var file in files)
+        {
+            Console.WriteLine($"\n📄 File: {file}");
+
+            string code = File.ReadAllText(file);
+
+            SyntaxTree tree = CSharpSyntaxTree.ParseText(code);
+            var root = tree.GetCompilationUnitRoot();
+
+            // Get all classes
+            var classes = root.DescendantNodes().OfType<ClassDeclarationSyntax>();
+
+            foreach (var cls in classes)
+            {
+                Console.WriteLine($"  🏷 Class: {cls.Identifier.Text}");
+
+                // Get methods
+                var methods = cls.DescendantNodes().OfType<MethodDeclarationSyntax>();
+
+                foreach (var method in methods)
+                {
+                    Console.WriteLine($"    🔹 Method: {method.Identifier.Text}");
+                }
+            }
+        }
+    }
+}
