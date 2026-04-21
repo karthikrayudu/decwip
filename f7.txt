@@ -1,41 +1,43 @@
-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
+using System;
+using System.IO;
+using System.Linq;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-pip install langchain
- 
- 
-pip install langchain-openai
- 
- 
-from langchain_openai import ChatOpenAI
-llm = ChatOpenAI(
-    model = "gpt-4.1-mini",
-    api_key="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"
-)
- 
- 
-llm.invoke("what is capital of India?").content
- 
- 
-pip install langchain-groq
- 
- 
-from langchain_groq import ChatGroq
-llm = ChatGroq(
-    model = "llama-3.1-8b-instant",
-    api_key="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")
- 
- 
-llm.invoke("what is capital of India?").content
- 
- 
-llm.invoke("who is cm of Telangana?").content
+class RoslynFileAnalyzer
+{
+    static void Main()
+    {
+        // 👉 Give your project folder path here
+        string folderPath = @"C:\YourProjectPath";
 
+        var files = Directory.GetFiles(folderPath, "*.cs", SearchOption.AllDirectories);
 
-system_prompt=""" you are expert in analyzing user query, refer user query and use tool "web_search" to fetch latest information from web based and use tool "six_digit_random_number" to generate 6 digit random number"""
-agent=create_agent(model=llm,tools=[web_search,six_digit_random_number],system_prompt= system_prompt)
+        foreach (var file in files)
+        {
+            Console.WriteLine($"\n📄 File: {file}");
 
+            string code = File.ReadAllText(file);
 
-from langchain.messages import HumanMessage
-message=HumanMessage(content="what is capital of india?")
-result=agent.invoke({"message":message})
-print(result["message"][-1])
+            SyntaxTree tree = CSharpSyntaxTree.ParseText(code);
+            var root = tree.GetCompilationUnitRoot();
+
+            // Get all classes
+            var classes = root.DescendantNodes().OfType<ClassDeclarationSyntax>();
+
+            foreach (var cls in classes)
+            {
+                Console.WriteLine($"  🏷 Class: {cls.Identifier.Text}");
+
+                // Get methods
+                var methods = cls.DescendantNodes().OfType<MethodDeclarationSyntax>();
+
+                foreach (var method in methods)
+                {
+                    Console.WriteLine($"    🔹 Method: {method.Identifier.Text}");
+                }
+            }
+        }
+    }
+}
