@@ -8,19 +8,36 @@ using System.Linq;
 
 public class PackageUsageFinder
 {
-    public static void FindUsage(string solutionPath, string packageNamespace)
+    public static void FindUsage(string folderPath, string packageNamespace)
     {
-        var csFiles = Directory.GetFiles(solutionPath, "*.cs", SearchOption.AllDirectories);
+        if (!Directory.Exists(folderPath))
+        {
+            Console.WriteLine("Invalid folder path.");
+            return;
+        }
 
+        var csFiles = Directory.GetFiles(folderPath, "*.cs", SearchOption.AllDirectories);
+
+        if (csFiles.Length == 0)
+        {
+            Console.WriteLine("No .cs files found.");
+            return;
+        }
+
+        // Parse all files into syntax trees
         var trees = csFiles.Select(file =>
-            CSharpSyntaxTree.ParseText(File.ReadAllText(file))).ToList();
+            CSharpSyntaxTree.ParseText(File.ReadAllText(file), path: file)).ToList();
 
+        // Create compilation with basic references
         var compilation = CSharpCompilation.Create("Analysis")
             .AddSyntaxTrees(trees)
             .AddReferences(
-                MetadataReference.CreateFromFile(typeof(object).Assembly.Location)
+                MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+                MetadataReference.CreateFromFile(typeof(Console).Assembly.Location),
+                MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location)
             );
 
+        // Store results
         var result = new Dictionary<string, HashSet<string>>();
 
         foreach (var tree in trees)
@@ -28,38 +45,90 @@ public class PackageUsageFinder
             var model = compilation.GetSemanticModel(tree);
             var root = tree.GetRoot();
 
+            // -----------------------------
+            // 1. METHOD INVOCATIONS
+            // -----------------------------
             var invocations = root.DescendantNodes()
                                   .OfType<InvocationExpressionSyntax>();
 
             foreach (var invocation in invocations)
             {
                 var symbol = model.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
-
                 if (symbol == null) continue;
 
-                var namespaceName = symbol.ContainingNamespace?.ToString();
+                AddIfMatches(symbol, packageNamespace, result);
+            }
 
-                if (namespaceName != null && namespaceName.StartsWith(packageNamespace))
-                {
-                    var className = symbol.ContainingType.Name;
-                    var methodName = symbol.Name;
+            // -----------------------------
+            // 2. OBJECT CREATION (Constructors)
+            // -----------------------------
+            var objectCreations = root.DescendantNodes()
+                                     .OfType<ObjectCreationExpressionSyntax>();
 
-                    if (!result.ContainsKey(className))
-                        result[className] = new HashSet<string>();
+            foreach (var creation in objectCreations)
+            {
+                var symbol = model.GetSymbolInfo(creation).Symbol as IMethodSymbol;
+                if (symbol == null) continue;
 
-                    result[className].Add(methodName);
-                }
+                AddIfMatches(symbol, packageNamespace, result, isConstructor: true);
+            }
+
+            // -----------------------------
+            // 3. PROPERTY / FIELD ACCESS
+            // -----------------------------
+            var memberAccess = root.DescendantNodes()
+                                  .OfType<MemberAccessExpressionSyntax>();
+
+            foreach (var member in memberAccess)
+            {
+                var symbol = model.GetSymbolInfo(member).Symbol;
+                if (symbol == null) continue;
+
+                AddIfMatches(symbol, packageNamespace, result);
             }
         }
 
-        // Print result
+        // -----------------------------
+        // OUTPUT
+        // -----------------------------
+        Console.WriteLine($"\nPackage Usage for: {packageNamespace}\n");
+
+        if (result.Count == 0)
+        {
+            Console.WriteLine("No usage found.");
+            return;
+        }
+
         foreach (var cls in result)
         {
             Console.WriteLine($"Class: {cls.Key}");
-            foreach (var method in cls.Value)
+            foreach (var member in cls.Value)
             {
-                Console.WriteLine($"  Method: {method}");
+                Console.WriteLine($"  - {member}");
             }
+            Console.WriteLine();
         }
+    }
+
+    // -----------------------------
+    // HELPER METHOD
+    // -----------------------------
+    private static void AddIfMatches(ISymbol symbol, string packageNamespace,
+        Dictionary<string, HashSet<string>> result, bool isConstructor = false)
+    {
+        var namespaceName = symbol.ContainingNamespace?.ToString();
+
+        if (namespaceName == null || !namespaceName.Contains(packageNamespace))
+            return;
+
+        var className = symbol.ContainingType?.Name;
+        if (className == null) return;
+
+        var memberName = isConstructor ? "Constructor" : symbol.Name;
+
+        if (!result.ContainsKey(className))
+            result[className] = new HashSet<string>();
+
+        result[className].Add(memberName);
     }
 }
