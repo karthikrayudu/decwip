@@ -1,43 +1,85 @@
 using System;
-using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.MSBuild;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-class RoslynFileAnalyzer
+class Program
 {
-    static void Main()
+    static async Task Main(string[] args)
     {
-        // 👉 Give your project folder path here
-        string folderPath = @"C:\YourProjectPath";
+        Console.Write("Enter Project/Solution Path: ");
+        string projectPath = Console.ReadLine();
 
-        var files = Directory.GetFiles(folderPath, "*.cs", SearchOption.AllDirectories);
+        Console.Write("Enter Package/Namespace (e.g., Newtonsoft.Json): ");
+        string targetNamespace = Console.ReadLine();
 
-        foreach (var file in files)
+        var workspace = MSBuildWorkspace.Create();
+
+        Console.WriteLine("\n🔄 Loading project...");
+
+        var project = await workspace.OpenProjectAsync(projectPath);
+        var compilation = await project.GetCompilationAsync();
+
+        Console.WriteLine("✅ Project Loaded Successfully!\n");
+
+        foreach (var tree in compilation.SyntaxTrees)
         {
-            Console.WriteLine($"\n📄 File: {file}");
+            var semanticModel = compilation.GetSemanticModel(tree);
+            var root = await tree.GetRootAsync();
 
-            string code = File.ReadAllText(file);
-
-            SyntaxTree tree = CSharpSyntaxTree.ParseText(code);
-            var root = tree.GetCompilationUnitRoot();
-
-            // Get all classes
             var classes = root.DescendantNodes().OfType<ClassDeclarationSyntax>();
 
             foreach (var cls in classes)
             {
-                Console.WriteLine($"  🏷 Class: {cls.Identifier.Text}");
+                bool classUsesPackage = false;
 
-                // Get methods
                 var methods = cls.DescendantNodes().OfType<MethodDeclarationSyntax>();
 
                 foreach (var method in methods)
                 {
-                    Console.WriteLine($"    🔹 Method: {method.Identifier.Text}");
+                    bool methodUsesPackage = false;
+
+                    var invocations = method.DescendantNodes()
+                                            .OfType<InvocationExpressionSyntax>();
+
+                    foreach (var invocation in invocations)
+                    {
+                        var symbolInfo = semanticModel.GetSymbolInfo(invocation);
+                        var symbol = symbolInfo.Symbol as IMethodSymbol;
+
+                        if (symbol != null)
+                        {
+                            string namespaceName = symbol.ContainingNamespace?.ToString();
+
+                            if (!string.IsNullOrEmpty(namespaceName) &&
+                                namespaceName.StartsWith(targetNamespace))
+                            {
+                                if (!methodUsesPackage)
+                                {
+                                    Console.WriteLine($"\n📄 File: {tree.FilePath}");
+                                    Console.WriteLine($"  🏷 Class: {cls.Identifier.Text}");
+                                    Console.WriteLine($"    🔹 Method: {method.Identifier.Text}");
+                                }
+
+                                Console.WriteLine($"       ➤ Uses: {symbol.Name} ({namespaceName})");
+
+                                methodUsesPackage = true;
+                                classUsesPackage = true;
+                            }
+                        }
+                    }
+                }
+
+                // Optional: Print class if only class-level usage (rare case)
+                if (classUsesPackage)
+                {
+                    // already printed via method
                 }
             }
         }
+
+        Console.WriteLine("\n🎯 Analysis Completed!");
     }
 }
