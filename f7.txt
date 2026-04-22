@@ -1,17 +1,8 @@
-using System;
-
-namespace DemoProject.Utils
+namespace DemoProject.Models
 {
-    public static class Helper
+    public class User
     {
-        public static void DoWork()
-        {
-            Console.WriteLine("Doing some work...");
-        }
-
-        public static void LogValidation(string name)
-        {
-            Console.WriteLine($"Validating user: {name}");
-        }
+        public string Name { get; set; }
+        public int Age { get; set; }
     }
 }
