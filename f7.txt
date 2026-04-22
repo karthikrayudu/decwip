@@ -1,10 +1,33 @@
-using DemoProject.Services;
+using Newtonsoft.Json;
+using DemoProject.Utils;
+using DemoProject.Models;
+using System;
 
-class Program
+namespace DemoProject.Services
 {
-    static void Main()
+    public class UserService
     {
-        var service = new UserService();
-        service.ProcessUser();
+        public void ProcessUser()
+        {
+            string json = "{ \"Name\": \"Karthik\", \"Age\": 22 }";
+
+            // 🔥 TARGET PACKAGE USAGE
+            var user = JsonConvert.DeserializeObject<User>(json);
+
+            // 📌 INTERNAL METHOD (should be detected)
+            Helper.DoWork();
+
+            // ❌ SHOULD NOT BE DETECTED
+            Console.WriteLine(user.Name);
+            var today = DateTime.Now;
+
+            ValidateUser(user);
+        }
+
+        private void ValidateUser(User user)
+        {
+            // 📌 INTERNAL CALL
+            Helper.LogValidation(user.Name);
+        }
     }
 }
