@@ -1,109 +1,30 @@
-using System;
-using System.Linq;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.MSBuild;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.Build.Locator;
+Severity	Code	Description	Project	File	Line	Suppression State	Details
+Error (active)	CS0234	The type or namespace name 'CodeAnalysis' does not exist in the namespace 'Microsoft' (are you missing an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	5		
+Severity	Code	Description	Project	File	Line	Suppression State	Details
+Error (active)	CS0234	The type or namespace name 'CodeAnalysis' does not exist in the namespace 'Microsoft' (are you missing an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	6		
+Severity	Code	Description	Project	File	Line	Suppression State	Details
+Error (active)	CS0234	The type or namespace name 'CodeAnalysis' does not exist in the namespace 'Microsoft' (are you missing an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	7		
+Severity	Code	Description	Project	File	Line	Suppression State	Details
+Error (active)	CS0234	The type or namespace name 'Build' does not exist in the namespace 'Microsoft' (are you missing an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	8		
+Severity	Code	Description	Project	File	Line	Suppression State	Details
+Error (active)	CS0103	The name 'MSBuildLocator' does not exist in the current context	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	21		
+Severity	Code	Description	Project	File	Line	Suppression State	Details
+Error (active)	CS0103	The name 'MSBuildWorkspace' does not exist in the current context	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	23		
+Severity	Code	Description	Project	File	Line	Suppression State	Details
+Error (active)	CS0246	The type or namespace name 'SyntaxNode' could not be found (are you missing a using directive or an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	27		
+Severity	Code	Description	Project	File	Line	Suppression State	Details
+Error (active)	CS0246	The type or namespace name 'SemanticModel' could not be found (are you missing a using directive or an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	27		
+Severity	Code	Description	Project	File	Line	Suppression State	Details
+Error (active)	CS0246	The type or namespace name 'InvocationExpressionSyntax' could not be found (are you missing a using directive or an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	43		
 
-class RoslynPackageAnalyzer
-{
-    static async Task Main(string[] args)
-    {
-        Console.Write("Enter .csproj path: ");
-        string projectPath = Console.ReadLine();
+Severity	Code	Description	Project	File	Line	Suppression State	Details
+Error (active)	CS0246	The type or namespace name 'IMethodSymbol' could not be found (are you missing a using directive or an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	47		
 
-        Console.Write("Enter package (e.g., Newtonsoft.Json): ");
-        string targetPackage = Console.ReadLine();
-
-        // Register MSBuild (important)
-        MSBuildLocator.RegisterDefaults();
-
-        var workspace = MSBuildWorkspace.Create();
-        var project = await workspace.OpenProjectAsync(projectPath);
-        var compilation = await project.GetCompilationAsync();
-
-        var allFiles = new List<(string FilePath, SyntaxNode Root, SemanticModel Model)>();
-        var affectedFiles = new HashSet<string>();
-
-        // 🔹 Step 1: Collect all files
-        foreach (var tree in compilation.SyntaxTrees)
-        {
-            var model = compilation.GetSemanticModel(tree);
-            var root = await tree.GetRootAsync();
-
-            allFiles.Add((tree.FilePath, root, model));
-        }
-
-        // 🔹 Step 2: Detect files using target package
-        foreach (var file in allFiles)
-        {
-            var invocations = file.Root.DescendantNodes()
-                                       .OfType<InvocationExpressionSyntax>();
-
-            foreach (var invocation in invocations)
-            {
-                var symbol = file.Model.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
-                if (symbol == null) continue;
-
-                var ns = symbol.ContainingNamespace?.ToString();
-
-                if (!string.IsNullOrEmpty(ns) &&
-                    ns.StartsWith(targetPackage, StringComparison.OrdinalIgnoreCase))
-                {
-                    affectedFiles.Add(System.IO.Path.GetFileName(file.FilePath));
-                    break;
-                }
-            }
-        }
-
-        // 🔹 Step 3: Detect dependency files (Helper.cs etc.)
-        foreach (var file in allFiles)
-        {
-            var fileName = System.IO.Path.GetFileName(file.FilePath);
-
-            if (!affectedFiles.Contains(fileName))
-                continue;
-
-            var invocations = file.Root.DescendantNodes()
-                                       .OfType<InvocationExpressionSyntax>();
-
-            foreach (var invocation in invocations)
-            {
-                var symbol = file.Model.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
-                if (symbol == null) continue;
-
-                var className = symbol.ContainingType?.Name;
-
-                foreach (var other in allFiles)
-                {
-                    var otherFileName = System.IO.Path.GetFileName(other.FilePath);
-
-                    if (otherFileName == fileName)
-                        continue;
-
-                    var classNodes = other.Root.DescendantNodes()
-                                               .OfType<ClassDeclarationSyntax>();
-
-                    if (classNodes.Any(c => c.Identifier.Text == className))
-                    {
-                        affectedFiles.Add(otherFileName);
-                    }
-                }
-            }
-        }
-
-        // 🔥 FINAL OUTPUT
-        Console.WriteLine("\n════════════════════════════════════════");
-        Console.WriteLine("  AFFECTED FILES");
-        Console.WriteLine("════════════════════════════════════════");
-
-        foreach (var file in affectedFiles)
-        {
-            Console.WriteLine($"- {file}");
-        }
-
-        Console.WriteLine("\nDone.");
-    }
-}
+Severity	Code	Description	Project	File	Line	Suppression State	Details
+Error (active)	CS0246	The type or namespace name 'InvocationExpressionSyntax' could not be found (are you missing a using directive or an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	70		
+Severity	Code	Description	Project	File	Line	Suppression State	Details
+Error (active)	CS0246	The type or namespace name 'IMethodSymbol' could not be found (are you missing a using directive or an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	74		
+Severity	Code	Description	Project	File	Line	Suppression State	Details
+Error (active)	CS0246	The type or namespace name 'ClassDeclarationSyntax' could not be found (are you missing a using directive or an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	87		
+Severity	Code	Description	Project	File	Line	Suppression State	Details
+Error (active)	MSBL001	A PackageReference to the package 'Microsoft.Build.Framework' at version '17.11.48' is present in this project without ExcludeAssets="runtime" and PrivateAssets="all" set. This can cause errors at run-time due to MSBuild assembly-loading.	roslyn	C:\Users\gutkarthik\.nuget\packages\microsoft.build.locator\1.11.2\buildTransitive\Microsoft.Build.Locator.targets	19		
