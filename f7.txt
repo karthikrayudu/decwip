@@ -1,30 +1,14 @@
-Severity	Code	Description	Project	File	Line	Suppression State	Details
-Error (active)	CS0234	The type or namespace name 'CodeAnalysis' does not exist in the namespace 'Microsoft' (are you missing an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	5		
-Severity	Code	Description	Project	File	Line	Suppression State	Details
-Error (active)	CS0234	The type or namespace name 'CodeAnalysis' does not exist in the namespace 'Microsoft' (are you missing an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	6		
-Severity	Code	Description	Project	File	Line	Suppression State	Details
-Error (active)	CS0234	The type or namespace name 'CodeAnalysis' does not exist in the namespace 'Microsoft' (are you missing an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	7		
-Severity	Code	Description	Project	File	Line	Suppression State	Details
-Error (active)	CS0234	The type or namespace name 'Build' does not exist in the namespace 'Microsoft' (are you missing an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	8		
-Severity	Code	Description	Project	File	Line	Suppression State	Details
-Error (active)	CS0103	The name 'MSBuildLocator' does not exist in the current context	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	21		
-Severity	Code	Description	Project	File	Line	Suppression State	Details
-Error (active)	CS0103	The name 'MSBuildWorkspace' does not exist in the current context	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	23		
-Severity	Code	Description	Project	File	Line	Suppression State	Details
-Error (active)	CS0246	The type or namespace name 'SyntaxNode' could not be found (are you missing a using directive or an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	27		
-Severity	Code	Description	Project	File	Line	Suppression State	Details
-Error (active)	CS0246	The type or namespace name 'SemanticModel' could not be found (are you missing a using directive or an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	27		
-Severity	Code	Description	Project	File	Line	Suppression State	Details
-Error (active)	CS0246	The type or namespace name 'InvocationExpressionSyntax' could not be found (are you missing a using directive or an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	43		
+<Project Sdk="Microsoft.NET.Sdk">
 
-Severity	Code	Description	Project	File	Line	Suppression State	Details
-Error (active)	CS0246	The type or namespace name 'IMethodSymbol' could not be found (are you missing a using directive or an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	47		
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
 
-Severity	Code	Description	Project	File	Line	Suppression State	Details
-Error (active)	CS0246	The type or namespace name 'InvocationExpressionSyntax' could not be found (are you missing a using directive or an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	70		
-Severity	Code	Description	Project	File	Line	Suppression State	Details
-Error (active)	CS0246	The type or namespace name 'IMethodSymbol' could not be found (are you missing a using directive or an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	74		
-Severity	Code	Description	Project	File	Line	Suppression State	Details
-Error (active)	CS0246	The type or namespace name 'ClassDeclarationSyntax' could not be found (are you missing a using directive or an assembly reference?)	roslyn	C:\R\Projects\roslyn\roslyn\Program.cs	87		
-Severity	Code	Description	Project	File	Line	Suppression State	Details
-Error (active)	MSBL001	A PackageReference to the package 'Microsoft.Build.Framework' at version '17.11.48' is present in this project without ExcludeAssets="runtime" and PrivateAssets="all" set. This can cause errors at run-time due to MSBuild assembly-loading.	roslyn	C:\Users\gutkarthik\.nuget\packages\microsoft.build.locator\1.11.2\buildTransitive\Microsoft.Build.Locator.targets	19		
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.8.0" />
+    <PackageReference Include="Microsoft.Build.Locator" Version="1.6.10" />
+  </ItemGroup>
+
+</Project>
