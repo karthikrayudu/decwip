@@ -1,29 +1,109 @@
-// 🔥 Step 2: Accurate dependency detection
-foreach (var file in allFiles)
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.MSBuild;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.Build.Locator;
+
+class RoslynPackageAnalyzer
 {
-    var fileName = Path.GetFileName(file.FilePath);
-
-    // Only process files that already use the package
-    if (!affectedFiles.Contains(fileName))
-        continue;
-
-    foreach (var other in allFiles)
+    static async Task Main(string[] args)
     {
-        var otherName = Path.GetFileName(other.FilePath);
+        Console.Write("Enter .csproj path: ");
+        string projectPath = Console.ReadLine();
 
-        if (file.FilePath == other.FilePath)
-            continue;
+        Console.Write("Enter package (e.g., Newtonsoft.Json): ");
+        string targetPackage = Console.ReadLine();
 
-        // 🔍 Get all invocation expressions from source
-        var source = File.ReadAllText(file.FilePath);
+        // Register MSBuild (important)
+        MSBuildLocator.RegisterDefaults();
 
-        // Simple detection: check if other class name is used
-        foreach (var className in other.Result.ClassNames)
+        var workspace = MSBuildWorkspace.Create();
+        var project = await workspace.OpenProjectAsync(projectPath);
+        var compilation = await project.GetCompilationAsync();
+
+        var allFiles = new List<(string FilePath, SyntaxNode Root, SemanticModel Model)>();
+        var affectedFiles = new HashSet<string>();
+
+        // 🔹 Step 1: Collect all files
+        foreach (var tree in compilation.SyntaxTrees)
         {
-            if (source.Contains(className + "."))
+            var model = compilation.GetSemanticModel(tree);
+            var root = await tree.GetRootAsync();
+
+            allFiles.Add((tree.FilePath, root, model));
+        }
+
+        // 🔹 Step 2: Detect files using target package
+        foreach (var file in allFiles)
+        {
+            var invocations = file.Root.DescendantNodes()
+                                       .OfType<InvocationExpressionSyntax>();
+
+            foreach (var invocation in invocations)
             {
-                affectedFiles.Add(otherName);
+                var symbol = file.Model.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
+                if (symbol == null) continue;
+
+                var ns = symbol.ContainingNamespace?.ToString();
+
+                if (!string.IsNullOrEmpty(ns) &&
+                    ns.StartsWith(targetPackage, StringComparison.OrdinalIgnoreCase))
+                {
+                    affectedFiles.Add(System.IO.Path.GetFileName(file.FilePath));
+                    break;
+                }
             }
         }
+
+        // 🔹 Step 3: Detect dependency files (Helper.cs etc.)
+        foreach (var file in allFiles)
+        {
+            var fileName = System.IO.Path.GetFileName(file.FilePath);
+
+            if (!affectedFiles.Contains(fileName))
+                continue;
+
+            var invocations = file.Root.DescendantNodes()
+                                       .OfType<InvocationExpressionSyntax>();
+
+            foreach (var invocation in invocations)
+            {
+                var symbol = file.Model.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
+                if (symbol == null) continue;
+
+                var className = symbol.ContainingType?.Name;
+
+                foreach (var other in allFiles)
+                {
+                    var otherFileName = System.IO.Path.GetFileName(other.FilePath);
+
+                    if (otherFileName == fileName)
+                        continue;
+
+                    var classNodes = other.Root.DescendantNodes()
+                                               .OfType<ClassDeclarationSyntax>();
+
+                    if (classNodes.Any(c => c.Identifier.Text == className))
+                    {
+                        affectedFiles.Add(otherFileName);
+                    }
+                }
+            }
+        }
+
+        // 🔥 FINAL OUTPUT
+        Console.WriteLine("\n════════════════════════════════════════");
+        Console.WriteLine("  AFFECTED FILES");
+        Console.WriteLine("════════════════════════════════════════");
+
+        foreach (var file in affectedFiles)
+        {
+            Console.WriteLine($"- {file}");
+        }
+
+        Console.WriteLine("\nDone.");
     }
 }
