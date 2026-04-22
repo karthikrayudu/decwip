@@ -1,12 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk">
+using DemoProject.Services;
 
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-  </ItemGroup>
-
-</Project>
+class Program
+{
+    static void Main()
+    {
+        var service = new UserService();
+        service.ProcessUser();
+    }
+}
