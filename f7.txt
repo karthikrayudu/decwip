@@ -1,221 +1,105 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Text.RegularExpressions;
-
-namespace EntityAttribute_POC
-{
-    public class CodeUsageDetector
-    {
-        // Maps well-known NuGet package names → their root namespaces
-        // Extend this dictionary as you add more packages
-        private static readonly Dictionary<string, List<string>> PackageNamespaceMap =
-            new(StringComparer.OrdinalIgnoreCase)
-            {
-                ["Microsoft.Data.SqlClient"] = new List<string>
-                {
-                    "Microsoft.Data.SqlClient"
-                },
-                ["Microsoft.Extensions.Http"] = new List<string>
-                {
-                    "Microsoft.Extensions.Http",
-                    "System.Net.Http",                        // IHttpClientFactory lives here
-                    "Microsoft.Extensions.DependencyInjection" // AddHttpClient extension
-                },
-                ["Microsoft.Extensions.Logging"] = new List<string>
-                {
-                    "Microsoft.Extensions.Logging"
-                },
-                ["Newtonsoft.Json"] = new List<string>
-                {
-                    "Newtonsoft.Json"
-                },
-                ["DotNetEnv"] = new List<string>
-                {
-                    "DotNetEnv"
-                }
-            };
-
-        /// <summary>
-        /// Scans all .cs files under projectFolderPath for usage of packageName.
-        /// Returns one FileUsageReport per affected file.
-        /// </summary>
-        public static List<FileUsageReport> DetectUsages(
-            string projectFolderPath,
-            string packageName)
-        {
-            if (!Directory.Exists(projectFolderPath))
-                throw new DirectoryNotFoundException(
-                    $"[Detector] Project folder not found: {projectFolderPath}");
-
-            // Resolve namespaces to search for
-            var namespacesToSearch = ResolveNamespaces(packageName);
-
-            Console.WriteLine($"[Detector] Scanning folder: {projectFolderPath}");
-            Console.WriteLine($"[Detector] Looking for namespaces: {string.Join(", ", namespacesToSearch)}");
-
-            // Get all .cs files — exclude obj/ bin/ folders
-            var csFiles = Directory.GetFiles(projectFolderPath, "*.cs", SearchOption.AllDirectories)
-    .Where(f =>
-        !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") &&
-        !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") &&
-        !f.Contains($"{Path.DirectorySeparatorChar}Unit Tests{Path.DirectorySeparatorChar}") &&
-        !f.Contains($"{Path.DirectorySeparatorChar}Integration Tests{Path.DirectorySeparatorChar}") &&
-        !f.Contains($"{Path.DirectorySeparatorChar}.vs{Path.DirectorySeparatorChar}"))
-    .ToList();
-
-            Console.WriteLine($"[Detector] Found {csFiles.Count} .cs file(s) to scan");
-
-            var results = new List<FileUsageReport>();
-
-            foreach (var filePath in csFiles)
-            {
-                var report = ScanFile(filePath, namespacesToSearch);
-                if (report != null)
-                {
-                    results.Add(report);
-                    Console.WriteLine($"[Detector] ✅ Match: {Path.GetFileName(filePath)} " +
-                        $"({report.MatchedLineNumbers.Count} hit(s))");
-                }
-            }
-
-            Console.WriteLine($"[Detector] Detection complete. {results.Count} affected file(s) found.");
-            return results;
-        }
-
-        /// <summary>
-        /// Scans a single file. Returns null if no usage found.
-        /// </summary>
-        private static FileUsageReport? ScanFile(
-    string filePath,
+public static RoslynUsageResult Analyze(
+    string sourceCode,
     List<string> namespacesToSearch)
+{
+    var result = new RoslynUsageResult();
+
+    var syntaxTree = CSharpSyntaxTree.ParseText(sourceCode);
+    var root = syntaxTree.GetCompilationUnitRoot();
+
+    // ── 1. Syntax errors ─────────────────────────────────────
+    result.SyntaxErrors = syntaxTree
+        .GetDiagnostics()
+        .Where(d => d.Severity == DiagnosticSeverity.Error)
+        .Select(d => $"Line {d.Location.GetLineSpan().StartLinePosition.Line + 1}: {d.GetMessage()}")
+        .ToList();
+
+    // ── 2. Using detection (existing logic) ──────────────────
+    foreach (var usingNode in root.Usings)
+    {
+        var namespaceName = usingNode.Name?.ToString() ?? string.Empty;
+
+        var matchedNs = namespacesToSearch.FirstOrDefault(ns =>
+            namespaceName.Equals(ns, StringComparison.OrdinalIgnoreCase) ||
+            namespaceName.StartsWith(ns + ".", StringComparison.OrdinalIgnoreCase));
+
+        if (matchedNs != null)
         {
-            string content;
-            try
-            {
-                content = File.ReadAllText(filePath);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Detector] ⚠ Could not read {filePath}: {ex.Message}");
-                return null;
-            }
+            result.ConfirmedNamespaces.Add(matchedNs);
+        }
+    }
 
-            // ── EXISTING: Regex scan (unchanged) ──────────────────────────────────
-            var matchedNamespaces = new List<string>();
-            var matchedLines = new List<int>();
-            var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.None);
+    // ── 3. Setup Semantic Model (IMPORTANT) ──────────────────
+    var compilation = CSharpCompilation.Create("Analysis")
+        .AddSyntaxTrees(syntaxTree)
+        .AddReferences(
+            MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(Console).Assembly.Location)
+        );
 
-            foreach (var ns in namespacesToSearch)
+    var semanticModel = compilation.GetSemanticModel(syntaxTree);
+
+    // ── 4. Class + Method scan ───────────────────────────────
+    var classes = root.DescendantNodes().OfType<ClassDeclarationSyntax>();
+
+    foreach (var cls in classes)
+    {
+        result.ClassNames.Add(cls.Identifier.Text);
+
+        var methods = cls.DescendantNodes().OfType<MethodDeclarationSyntax>();
+
+        foreach (var method in methods)
+        {
+            bool usesTargetPackage = false;
+
+            var invocations = method.DescendantNodes()
+                                    .OfType<InvocationExpressionSyntax>();
+
+            // Step A: detect target package usage
+            foreach (var invocation in invocations)
             {
-                var patterns = new[]
+                var symbol = semanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
+                if (symbol == null) continue;
+
+                var ns = symbol.ContainingNamespace?.ToString();
+
+                if (!string.IsNullOrEmpty(ns) &&
+                    namespacesToSearch.Any(target => ns.StartsWith(target)))
                 {
-            $@"using\s+{Regex.Escape(ns)}",
-            $@"{Regex.Escape(ns)}\.",
-        };
-
-                bool foundInFile = false;
-                foreach (var pattern in patterns)
-                {
-                    for (int i = 0; i < lines.Length; i++)
-                    {
-                        if (Regex.IsMatch(lines[i], pattern, RegexOptions.IgnoreCase))
-                        {
-                            if (!matchedLines.Contains(i + 1))
-                                matchedLines.Add(i + 1);
-                            foundInFile = true;
-                        }
-                    }
-                    if (foundInFile && !matchedNamespaces.Contains(ns))
-                        matchedNamespaces.Add(ns);
+                    usesTargetPackage = true;
+                    break;
                 }
             }
 
-            // ── NEW: Roslyn enrichment ─────────────────────────────────────────────
-            // Run Roslyn even if Regex found nothing — Roslyn catches edge cases Regex misses
-            var roslynResult = RoslynUsageAnalyzer.Analyze(content, namespacesToSearch);
-
-            // Merge Roslyn namespaces into matched set
-            foreach (var ns in roslynResult.ConfirmedNamespaces)
-                if (!matchedNamespaces.Contains(ns))
-                    matchedNamespaces.Add(ns);
-
-            foreach (var line in roslynResult.ConfirmedUsingLines
-                .Concat(roslynResult.FullyQualifiedReferenceLines))
-                if (!matchedLines.Contains(line))
-                    matchedLines.Add(line);
-
-            // Report any syntax errors found by Roslyn
-            if (roslynResult.SyntaxErrors.Count > 0)
+            // Step B: only include method if package is used
+            if (usesTargetPackage)
             {
-                Console.WriteLine(
-                    $"[Roslyn] ⚠ {roslynResult.SyntaxErrors.Count} syntax " +
-                    $"error(s) in {Path.GetFileName(filePath)}:");
-                roslynResult.SyntaxErrors.ForEach(e =>
-                    Console.WriteLine($"         {e}"));
-            }
+                result.MethodNames.Add(method.Identifier.Text);
 
-            // ── If nothing found by EITHER Regex or Roslyn → skip file ───────────
-            if (matchedNamespaces.Count == 0)
-                return null;
+                // Step C: detect internal dependencies (Helper etc.)
+                foreach (var invocation in invocations)
+                {
+                    var symbol = semanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
+                    if (symbol == null) continue;
 
-            var report = new FileUsageReport
-            {
-                FilePath = filePath,
-                MatchedNamespaces = matchedNamespaces,
-                MatchedLineNumbers = matchedLines.OrderBy(l => l).ToList(),
-                OriginalContent = content,
-                SyntaxErrors = roslynResult.SyntaxErrors,
-                ClassNames = roslynResult.ClassNames,
-                MethodNames = roslynResult.MethodNames
-            };
+                    var ns = symbol.ContainingNamespace?.ToString();
 
-            return report;
-        }
+                    // ❌ Skip System & Microsoft
+                    if (ns.StartsWith("System") || ns.StartsWith("Microsoft"))
+                        continue;
 
-
-
-        /// <summary>
-        /// Gets the namespaces to search for a given package.
-        /// Falls back to using the package name itself as the namespace.
-        /// </summary>
-        public static List<string> ResolveNamespaces(string packageName)
-        {
-            if (PackageNamespaceMap.TryGetValue(packageName, out var namespaces))
-                return namespaces;
-
-            // Fallback: assume namespace matches package name
-            Console.WriteLine($"[Detector] ⚠ No namespace map for '{packageName}'. " +
-                $"Using package name as namespace.");
-            return new List<string> { packageName };
-        }
-
-        /// <summary>
-        /// Reads the current version of a package from a .csproj file.
-        /// Used to auto-detect fromVersion when not specified in event.json.
-        /// </summary>
-        public static string? GetCurrentVersionFromCsproj(
-            string csprojPath,
-            string packageName)
-        {
-            if (!File.Exists(csprojPath)) return null;
-
-            try
-            {
-                var xml = System.Xml.Linq.XDocument.Load(csprojPath);
-                var packageRef = xml.Descendants("PackageReference")
-                    .FirstOrDefault(pr =>
-                        pr.Attribute("Include")?.Value
-                            .Equals(packageName, StringComparison.OrdinalIgnoreCase) == true);
-
-                return packageRef?.Attribute("Version")?.Value;
-            }
-            catch
-            {
-                return null;
+                    // ✅ Only allow:
+                    // target package OR same project code
+                    if (namespacesToSearch.Any(target => ns.StartsWith(target)) ||
+                        !namespacesToSearch.Any(target => ns.StartsWith(target)))
+                    {
+                        if (!result.ConfirmedNamespaces.Contains(ns))
+                            result.ConfirmedNamespaces.Add(ns);
+                    }
+                }
             }
         }
     }
+
+    return result;
 }
