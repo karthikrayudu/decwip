@@ -10,108 +10,113 @@ class Program
 {
     static void Main(string[] args)
     {
-        Console.Write("Enter .csproj path: ");
-        string projectPath = Console.ReadLine();
-
-        Console.Write("Enter package name (e.g., Newtonsoft.Json): ");
-        string targetPackage = Console.ReadLine();
-
-        string projectFolder = Path.GetDirectoryName(projectPath);
-
-        if (!Directory.Exists(projectFolder))
+        while (true)
         {
-            Console.WriteLine("❌ Invalid project path");
-            return;
-        }
 
-        var allFiles = Directory.GetFiles(projectFolder, "*.cs", SearchOption.AllDirectories);
 
-        var fileData = new List<(string File, SyntaxNode Root)>();
-        var affectedFiles = new HashSet<string>();
+            Console.Write("Enter .csproj path: ");
+            string projectPath = Console.ReadLine();
 
-        // 🔹 Step 1: Parse all files
-        foreach (var file in allFiles)
-        {
-            var code = File.ReadAllText(file);
-            var tree = CSharpSyntaxTree.ParseText(code);
-            var root = tree.GetRoot();
+            Console.Write("Enter package name (e.g., Newtonsoft.Json): ");
+            string targetPackage = Console.ReadLine();
 
-            fileData.Add((file, root));
-        }
+            string projectFolder = Path.GetDirectoryName(projectPath);
 
-        // 🔹 Step 2: Detect direct package usage
-        foreach (var file in fileData)
-        {
-            var usings = file.Root.DescendantNodes()
-                                  .OfType<UsingDirectiveSyntax>();
-
-            if (usings.Any(u => u.Name.ToString().StartsWith(targetPackage)))
+            if (!Directory.Exists(projectFolder))
             {
-                affectedFiles.Add(Path.GetFileName(file.File));
-                continue;
+                Console.WriteLine("❌ Invalid project path");
+                return;
             }
 
-            var invocations = file.Root.DescendantNodes()
-                                       .OfType<InvocationExpressionSyntax>();
+            var allFiles = Directory.GetFiles(projectFolder, "*.cs", SearchOption.AllDirectories);
 
-            foreach (var inv in invocations)
+            var fileData = new List<(string File, SyntaxNode Root)>();
+            var affectedFiles = new HashSet<string>();
+
+            // 🔹 Step 1: Parse all files
+            foreach (var file in allFiles)
             {
-                if (inv.ToString().Contains(targetPackage))
+                var code = File.ReadAllText(file);
+                var tree = CSharpSyntaxTree.ParseText(code);
+                var root = tree.GetRoot();
+
+                fileData.Add((file, root));
+            }
+
+            // 🔹 Step 2: Detect direct package usage
+            foreach (var file in fileData)
+            {
+                var usings = file.Root.DescendantNodes()
+                                      .OfType<UsingDirectiveSyntax>();
+
+                if (usings.Any(u => u.Name.ToString().StartsWith(targetPackage)))
                 {
                     affectedFiles.Add(Path.GetFileName(file.File));
-                    break;
+                    continue;
+                }
+
+                var invocations = file.Root.DescendantNodes()
+                                           .OfType<InvocationExpressionSyntax>();
+
+                foreach (var inv in invocations)
+                {
+                    if (inv.ToString().Contains(targetPackage))
+                    {
+                        affectedFiles.Add(Path.GetFileName(file.File));
+                        break;
+                    }
                 }
             }
-        }
 
-        // 🔹 Step 3: Detect dependency files (like Helper.cs)
-        foreach (var file in fileData)
-        {
-            var fileName = Path.GetFileName(file.File);
-
-            if (!affectedFiles.Contains(fileName))
-                continue;
-
-            var invocations = file.Root.DescendantNodes()
-                                       .OfType<InvocationExpressionSyntax>();
-
-            foreach (var inv in invocations)
+            // 🔹 Step 3: Detect dependency files (like Helper.cs)
+            foreach (var file in fileData)
             {
-                var expr = inv.Expression.ToString(); // e.g., Helper.DoWork
+                var fileName = Path.GetFileName(file.File);
 
-                if (expr.Contains("."))
+                if (!affectedFiles.Contains(fileName))
+                    continue;
+
+                var invocations = file.Root.DescendantNodes()
+                                           .OfType<InvocationExpressionSyntax>();
+
+                foreach (var inv in invocations)
                 {
-                    var className = expr.Split('.')[0];
+                    var expr = inv.Expression.ToString(); // e.g., Helper.DoWork
 
-                    foreach (var other in fileData)
+                    if (expr.Contains("."))
                     {
-                        var otherFile = Path.GetFileName(other.File);
+                        var className = expr.Split('.')[0];
 
-                        if (otherFile == fileName)
-                            continue;
-
-                        var classes = other.Root.DescendantNodes()
-                                                .OfType<ClassDeclarationSyntax>();
-
-                        if (classes.Any(c => c.Identifier.Text == className))
+                        foreach (var other in fileData)
                         {
-                            affectedFiles.Add(otherFile);
+                            var otherFile = Path.GetFileName(other.File);
+
+                            if (otherFile == fileName)
+                                continue;
+
+                            var classes = other.Root.DescendantNodes()
+                                                    .OfType<ClassDeclarationSyntax>();
+
+                            if (classes.Any(c => c.Identifier.Text == className))
+                            {
+                                affectedFiles.Add(otherFile);
+                            }
                         }
                     }
                 }
             }
+
+            // 🔥 FINAL OUTPUT
+            Console.WriteLine("\n════════════════════════════════════════");
+            Console.WriteLine("  AFFECTED FILES");
+            Console.WriteLine("════════════════════════════════════════");
+
+            foreach (var file in affectedFiles)
+            {
+                Console.WriteLine($"- {file}");
+            }
+
+            Console.WriteLine("\n✅ Done");
         }
-
-        // 🔥 FINAL OUTPUT
-        Console.WriteLine("\n════════════════════════════════════════");
-        Console.WriteLine("  AFFECTED FILES");
-        Console.WriteLine("════════════════════════════════════════");
-
-        foreach (var file in affectedFiles)
-        {
-            Console.WriteLine($"- {file}");
-        }
-
-        Console.WriteLine("\n✅ Done");
     }
 }
