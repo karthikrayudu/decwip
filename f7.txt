@@ -1,84 +1,122 @@
-else
-{
-    Console.WriteLine(
-        "[Pipeline] 📂 Full scan mode: no git diff available.");
+[RunConfig] Loading from: C:\R\Projects\Intella_analytics_POC\row_major\AttributeAPI\run-config.config
+[RunConfig] LocalRepoPath       : C:\R\Projects\demoproj\demoproj\ConsoleApp1
+[RunConfig] GeneratedOutputPath : C:\R\git automation\GeneratedViews
+[RunConfig] RepoTargetSubfolder : generated\views
+[Startup] Target project: C:\R\Projects\demoproj\DemoProject\DemoProject.csproj
+[Startup] Package : Newtonsoft.Json
+[Startup] From    : 13.0.1
+[Startup] To      : 13.0.3
+[NuGet] Package 'Newtonsoft.Json' is already at version '13.0.3'. Skipping.
 
-    var allFiles = new List<(string FilePath, RoslynUsageResult Result)>();
-    var affectedFiles = new HashSet<string>();
+════════════════════════════════════════
+  PHASE 1 - Detecting package usage
+════════════════════════════════════════
+[Pipeline] ?? Full scan mode: no git diff available.
 
-    usageReports = Directory
-        .GetFiles(projectFolder, "*.cs", SearchOption.AllDirectories)
-        .Select(f =>
-        {
-            var sourceCode = File.ReadAllText(f);
-            var roslynResult = RoslynUsageAnalyzer.Analyze(sourceCode, packageNamespaces);
+════════════════════════════════════════
+  AFFECTED FILES
+════════════════════════════════════════
+- UserService.cs
 
-            // Store all files for dependency detection
-            allFiles.Add((f, roslynResult));
+════════════════════════════════════════
+  PHASE 2 - LLM Code Migration (1 file(s))
+════════════════════════════════════════
+[LLM] Migrating: UserService.cs...
+[LLM] ? Done: UserService.cs
+[Pipeline] ? Written: UserService.cs
 
-            // ✅ Step 1: Direct package usage
-            if (roslynResult.MethodNames.Any())
-            {
-                affectedFiles.Add(Path.GetFileName(f));
-            }
+════════════════════════════════════════
+  PHASE 2.5 - LLM Test Generation
+════════════════════════════════════════
+[TestGen] Test project exists: C:\R\Projects\demoproj\DemoProject.Tests\DemoProject.Tests.csproj
+[TestGen] Generating tests for 1 affected file(s)...
+[TestGen] Calling LLM to generate unit tests...
+[TestGen] Calling: https://azuse2k1mldevaifoundary01.cognitiveservices.azure.com/openai/deployments/k1ml-gpt-5.4/chat/completions?api-version=2025-01-01-preview
+Prompt Tokens: 552
+Completion Tokens: 249
+Total Tokens: 801
+##vso[task.logissue type=warning]Prompt Token: 552
+##vso[task.logissue type=warning]Completion Token: 249
+##vso[task.logissue type=warning]Total Token: 801
+[TestGen] ? Generated: GeneratedUnitTests.cs
+[TestGen] Calling LLM to generate integration tests (Gherkin)...
+[TestGen] Calling: https://azuse2k1mldevaifoundary01.cognitiveservices.azure.com/openai/deployments/k1ml-gpt-5.4/chat/completions?api-version=2025-01-01-preview
+Prompt Tokens: 1043
+Completion Tokens: 807
+Total Tokens: 1850
+##vso[task.logissue type=warning]Prompt Token: 1043
+##vso[task.logissue type=warning]Completion Token: 807
+##vso[task.logissue type=warning]Total Token: 1850
+[TestGen] Parsing LLM output for integration tests...
+[TestGen] ? Generated: Generated.feature
+[TestGen] ? Generated: GeneratedSteps.cs
 
-            // Skip completely irrelevant files
-            if (!roslynResult.ConfirmedUsingLines.Any() &&
-                !roslynResult.FullyQualifiedReferenceLines.Any())
-                return null;
+[TestGen] Verifying test structure...
+[TestGen] Unit Tests: 1 file(s)
+   GeneratedUnitTests.cs
+[TestGen] Integration Tests (Features): 1 file(s)
+   Generated.feature
+[TestGen] Integration Tests (Steps): 1 file(s)
+   GeneratedSteps.cs
 
-            var report = new FileUsageReport
-            {
-                FilePath = f,
-                WasGitChanged = true,
-                OriginalContent = sourceCode
-            };
+[TestGen] Building test project...
+[TestGen] ? Test project build succeeded.
 
-            RoslynUsageAnalyzer.EnrichReport(report, roslynResult);
-            return report;
-        })
-        .Where(r => r != null)
-        .ToList()!;
+[TestGen] Running UNIT tests...
 
-    // 🔥 Step 2: Dependency detection (Helper.cs etc.)
-    foreach (var file in allFiles)
-    {
-        var fileName = Path.GetFileName(file.FilePath);
+╔══════════════════════════════════════╗
+║  ? UNIT        - PASSED        ║
+╠══════════════════════════════════════╣
+║  Passed  : 4                          ║
+║  Failed  : 0                          ║
+║  Skipped : 0                          ║
+╚══════════════════════════════════════╝
 
-        if (!affectedFiles.Contains(fileName))
-            continue;
+[TestGen] Running INTEGRATION tests...
 
-        foreach (var other in allFiles)
-        {
-            var otherName = Path.GetFileName(other.FilePath);
+╔══════════════════════════════════════╗
+║  ? INTEGRATION - PASSED        ║
+╠══════════════════════════════════════╣
+║  Passed  : 2                          ║
+║  Failed  : 0                          ║
+║  Skipped : 0                          ║
+╚══════════════════════════════════════╝
 
-            if (file.FilePath == other.FilePath)
-                continue;
 
-            // If current file calls methods that belong to another file
-            foreach (var method in file.Result.MethodNames)
-            {
-                if (other.Result.ClassNames.Contains(method) ||
-                    other.Result.MethodNames.Any(m => file.Result.MethodNames.Contains(m)))
-                {
-                    affectedFiles.Add(otherName);
-                }
-            }
-        }
-    }
 
-    // 🔥 Step 3: Print ONLY required files
-    Console.WriteLine("\n════════════════════════════════════════");
-    Console.WriteLine("  AFFECTED FILES");
-    Console.WriteLine("════════════════════════════════════════");
 
-    foreach (var file in affectedFiles)
-    {
-        Console.WriteLine($"- {file}");
-    }
+════════════════════════════════════════
+  PHASE 3 - Build & Self-Correction
+════════════════════════════════════════
+[Test] Running dotnet restore...
+[Test] Running dotnet build...
+[Test] ? Build succeeded.
+[Test] Running dotnet test...
+[Test] ? Derived test project: C:\R\Projects\demoproj\DemoProject.Tests\DemoProject.Tests.csproj
+[Test] Running dotnet test...
+[Test] ? All tests passed.
 
-    // 🔥 Step 4: Filter usageReports
-    usageReports = usageReports
-        .Where(r => affectedFiles.Contains(Path.GetFileName(r.FilePath)))
-        .ToList();
-}
+
+╔══════════════════════════════════════════════╗
+║           MIGRATION PIPELINE SUMMARY         ║
+╚══════════════════════════════════════════════╝
+=== Migration Summary: Newtonsoft.Json 13.0.1 ␦ 13.0.3 ===
+Files Scanned     : 6
+Files Affected    : 1
+Files Migrated    : 1
+Manual Review     : 0
+Build Status      : ? PASSED
+Test Status       : ? PASSED
+
+Migrated Files:
+  - UserService.cs
+
+
+╔══════════════════════════════════════════════╗
+║  Unit Tests        : ? PASSED                ║
+║  Integration Tests : ? PASSED                ║
+╚══════════════════════════════════════════════╝
+
+C:\R\Projects\roslyn\EntityAttribute_POC\bin\Debug\net8.0\EntityAttribute_POC.exe (process 14368) exited with code 0 (0x0).
+To automatically close the console when debugging stops, enable Tools->Options->Debugging->Automatically close the console when debugging stops.
+Press any key to close this window . . .
