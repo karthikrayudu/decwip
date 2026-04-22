@@ -1,105 +1,12 @@
-public static RoslynUsageResult Analyze(
-    string sourceCode,
-    List<string> namespacesToSearch)
-{
-    var result = new RoslynUsageResult();
+<Project Sdk="Microsoft.NET.Sdk">
 
-    var syntaxTree = CSharpSyntaxTree.ParseText(sourceCode);
-    var root = syntaxTree.GetCompilationUnitRoot();
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
 
-    // ── 1. Syntax errors ─────────────────────────────────────
-    result.SyntaxErrors = syntaxTree
-        .GetDiagnostics()
-        .Where(d => d.Severity == DiagnosticSeverity.Error)
-        .Select(d => $"Line {d.Location.GetLineSpan().StartLinePosition.Line + 1}: {d.GetMessage()}")
-        .ToList();
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
 
-    // ── 2. Using detection (existing logic) ──────────────────
-    foreach (var usingNode in root.Usings)
-    {
-        var namespaceName = usingNode.Name?.ToString() ?? string.Empty;
-
-        var matchedNs = namespacesToSearch.FirstOrDefault(ns =>
-            namespaceName.Equals(ns, StringComparison.OrdinalIgnoreCase) ||
-            namespaceName.StartsWith(ns + ".", StringComparison.OrdinalIgnoreCase));
-
-        if (matchedNs != null)
-        {
-            result.ConfirmedNamespaces.Add(matchedNs);
-        }
-    }
-
-    // ── 3. Setup Semantic Model (IMPORTANT) ──────────────────
-    var compilation = CSharpCompilation.Create("Analysis")
-        .AddSyntaxTrees(syntaxTree)
-        .AddReferences(
-            MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(Console).Assembly.Location)
-        );
-
-    var semanticModel = compilation.GetSemanticModel(syntaxTree);
-
-    // ── 4. Class + Method scan ───────────────────────────────
-    var classes = root.DescendantNodes().OfType<ClassDeclarationSyntax>();
-
-    foreach (var cls in classes)
-    {
-        result.ClassNames.Add(cls.Identifier.Text);
-
-        var methods = cls.DescendantNodes().OfType<MethodDeclarationSyntax>();
-
-        foreach (var method in methods)
-        {
-            bool usesTargetPackage = false;
-
-            var invocations = method.DescendantNodes()
-                                    .OfType<InvocationExpressionSyntax>();
-
-            // Step A: detect target package usage
-            foreach (var invocation in invocations)
-            {
-                var symbol = semanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
-                if (symbol == null) continue;
-
-                var ns = symbol.ContainingNamespace?.ToString();
-
-                if (!string.IsNullOrEmpty(ns) &&
-                    namespacesToSearch.Any(target => ns.StartsWith(target)))
-                {
-                    usesTargetPackage = true;
-                    break;
-                }
-            }
-
-            // Step B: only include method if package is used
-            if (usesTargetPackage)
-            {
-                result.MethodNames.Add(method.Identifier.Text);
-
-                // Step C: detect internal dependencies (Helper etc.)
-                foreach (var invocation in invocations)
-                {
-                    var symbol = semanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
-                    if (symbol == null) continue;
-
-                    var ns = symbol.ContainingNamespace?.ToString();
-
-                    // ❌ Skip System & Microsoft
-                    if (ns.StartsWith("System") || ns.StartsWith("Microsoft"))
-                        continue;
-
-                    // ✅ Only allow:
-                    // target package OR same project code
-                    if (namespacesToSearch.Any(target => ns.StartsWith(target)) ||
-                        !namespacesToSearch.Any(target => ns.StartsWith(target)))
-                    {
-                        if (!result.ConfirmedNamespaces.Contains(ns))
-                            result.ConfirmedNamespaces.Add(ns);
-                    }
-                }
-            }
-        }
-    }
-
-    return result;
-}
+</Project>
