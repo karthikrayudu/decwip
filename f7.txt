@@ -1,13 +1,123 @@
- var genericTypes = method.DescendantNodes()
-                             .OfType<GenericNameSyntax>();
+[RunConfig] Loading from: C:\R\Projects\Intella_analytics_POC\row_major\AttributeAPI\run-config.config
+[RunConfig] LocalRepoPath       : C:\R\Projects\demoproj\demoproj\ConsoleApp1
+[RunConfig] GeneratedOutputPath : C:\R\git automation\GeneratedViews
+[RunConfig] RepoTargetSubfolder : generated\views
+[Startup] Target project: C:\R\Projects\demoproj\DemoProject\DemoProject.csproj
+[Startup] Package : Newtonsoft.Json
+[Startup] From    : 13.0.1
+[Startup] To      : 13.0.3
+[NuGet] Package 'Newtonsoft.Json' is already at version '13.0.3'. Skipping.
 
-    foreach (var gen in genericTypes)
-    {
-        foreach (var arg in gen.TypeArgumentList.Arguments)
-        {
-            var typeName = arg.ToString();
+════════════════════════════════════════
+  PHASE 1 - Detecting package usage
+════════════════════════════════════════
+[Pipeline] ?? Full scan mode: no git diff available.
 
-            if (!result.ClassNames.Contains(typeName))
-                result.ClassNames.Add(typeName);
-        }
-    }
+════════════════════════════════════════
+  AFFECTED FILES
+════════════════════════════════════════
+- UserService.cs
+- Helper.cs
+
+════════════════════════════════════════
+  PHASE 2 - LLM Code Migration (1 file(s))
+════════════════════════════════════════
+[LLM] Migrating: UserService.cs...
+[LLM] ? Done: UserService.cs
+[Pipeline] ? Written: UserService.cs
+
+════════════════════════════════════════
+  PHASE 2.5 - LLM Test Generation
+════════════════════════════════════════
+[TestGen] Test project exists: C:\R\Projects\demoproj\DemoProject.Tests\DemoProject.Tests.csproj
+[TestGen] Generating tests for 1 affected file(s)...
+[TestGen] Calling LLM to generate unit tests...
+[TestGen] Calling: https://azuse2k1mldevaifoundary01.cognitiveservices.azure.com/openai/deployments/k1ml-gpt-5.4/chat/completions?api-version=2025-01-01-preview
+Prompt Tokens: 514
+Completion Tokens: 227
+Total Tokens: 741
+##vso[task.logissue type=warning]Prompt Token: 514
+##vso[task.logissue type=warning]Completion Token: 227
+##vso[task.logissue type=warning]Total Token: 741
+[TestGen] ? Generated: GeneratedUnitTests.cs
+[TestGen] Calling LLM to generate integration tests (Gherkin)...
+[TestGen] Calling: https://azuse2k1mldevaifoundary01.cognitiveservices.azure.com/openai/deployments/k1ml-gpt-5.4/chat/completions?api-version=2025-01-01-preview
+Prompt Tokens: 1005
+Completion Tokens: 698
+Total Tokens: 1703
+##vso[task.logissue type=warning]Prompt Token: 1005
+##vso[task.logissue type=warning]Completion Token: 698
+##vso[task.logissue type=warning]Total Token: 1703
+[TestGen] Parsing LLM output for integration tests...
+[TestGen] ? Generated: Generated.feature
+[TestGen] ? Generated: GeneratedSteps.cs
+
+[TestGen] Verifying test structure...
+[TestGen] Unit Tests: 1 file(s)
+   GeneratedUnitTests.cs
+[TestGen] Integration Tests (Features): 1 file(s)
+   Generated.feature
+[TestGen] Integration Tests (Steps): 1 file(s)
+   GeneratedSteps.cs
+
+[TestGen] Building test project...
+[TestGen] ? Test project build succeeded.
+
+[TestGen] Running UNIT tests...
+
+╔══════════════════════════════════════╗
+║  ? UNIT        - PASSED        ║
+╠══════════════════════════════════════╣
+║  Passed  : 3                          ║
+║  Failed  : 0                          ║
+║  Skipped : 0                          ║
+╚══════════════════════════════════════╝
+
+[TestGen] Running INTEGRATION tests...
+
+╔══════════════════════════════════════╗
+║  ? INTEGRATION - PASSED        ║
+╠══════════════════════════════════════╣
+║  Passed  : 2                          ║
+║  Failed  : 0                          ║
+║  Skipped : 0                          ║
+╚══════════════════════════════════════╝
+
+
+
+
+════════════════════════════════════════
+  PHASE 3 - Build & Self-Correction
+════════════════════════════════════════
+[Test] Running dotnet restore...
+[Test] Running dotnet build...
+[Test] ? Build succeeded.
+[Test] Running dotnet test...
+[Test] ? Derived test project: C:\R\Projects\demoproj\DemoProject.Tests\DemoProject.Tests.csproj
+[Test] Running dotnet test...
+[Test] ? All tests passed.
+
+
+╔══════════════════════════════════════════════╗
+║           MIGRATION PIPELINE SUMMARY         ║
+╚══════════════════════════════════════════════╝
+=== Migration Summary: Newtonsoft.Json 13.0.1 ␦ 13.0.3 ===
+Files Scanned     : 6
+Files Affected    : 1
+Files Migrated    : 1
+Manual Review     : 0
+Build Status      : ? PASSED
+Test Status       : ? PASSED
+
+Migrated Files:
+  - UserService.cs
+
+
+╔══════════════════════════════════════════════╗
+║  Unit Tests        : ? PASSED                ║
+║  Integration Tests : ? PASSED                ║
+╚══════════════════════════════════════════════╝
+
+C:\R\Projects\roslyn\EntityAttribute_POC\bin\Debug\net8.0\EntityAttribute_POC.exe (process 8384) exited with code 0 (0x0).
+To automatically close the console when debugging stops, enable Tools->Options->Debugging->Automatically close the console when debugging stops.
+Press any key to close this window . . .
