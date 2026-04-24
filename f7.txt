@@ -1,611 +1,83 @@
-using System.Text;
-using System.Text.Json;
-
-namespace EntityAttribute_POC
+public async Task<string?> SelfCorrectBuildErrorsAsync(
+    string fileContent,
+    string buildErrors,
+    string filePath)
 {
-    public class LLMCodeMigrator
+    _output.WriteLine($"[LLM] Self-correcting: {Path.GetFileName(filePath)}...");
+
+    // 🔒 Safety: skip if no errors
+    if (string.IsNullOrWhiteSpace(buildErrors))
     {
-        private readonly HttpClient _httpClient;
-        private readonly string _endpoint;
-        private readonly string _deployment;
-        private readonly string _apiKey;
-        private readonly string _apiVersion;
-        private const int MaxRetries = 3;
-        private readonly TextWriter _output;
+        _output.WriteLine("[LLM-FIX] No build errors provided. Skipping fix.");
+        return null;
+    }
 
-        // public LLMCodeMigrator(string endpoint, string deployment, string apiKey) : this(endpoint, deployment, apiKey, Console.Out)
-        // {
-        //     _endpoint = endpoint.TrimEnd('/');
-        //     _deployment = deployment;
-        //     _apiKey = apiKey;
+    var systemPrompt = BuildSelfCorrectionSystemPrompt();
+    var userPrompt = BuildSelfCorrectionUserPrompt(fileContent, buildErrors, filePath);
 
-        //     _apiVersion = Environment.GetEnvironmentVariable("AZURE_API_VERSION")
-        //                   ?? "2024-12-01-preview";
-
-        //     _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
-        //     _httpClient.DefaultRequestHeaders.Add("api-key", _apiKey);
-        // }
-        public LLMCodeMigrator(string endpoint, string deployment, string apiKey) : this(endpoint, deployment, apiKey, Console.Out) { }
-        
-            internal LLMCodeMigrator(string endpoint, string deployment, string apiKey, TextWriter output)
-                {
-                    _endpoint = endpoint.TrimEnd('/');
-                    _deployment = deployment;
-                    _apiKey = apiKey;
-                    _output = output;
-
-                    _apiVersion = Environment.GetEnvironmentVariable("AZURE_API_VERSION")
-                                ?? "2024-12-01-preview";
-
-                    _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
-                    _httpClient.DefaultRequestHeaders.Add("api-key", _apiKey);
-                }
-        
-
-        public static LLMCodeMigrator? TryCreate(EventData data)
+    var requestBody = new
+    {
+        messages = new[]
         {
-            // var endpoint = data.llmEndpoint ?? Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT");
-            // var deployment = data.llmDeployment ?? Environment.GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT") ?? "gpt-4o";
-            // var apiKey = data.llmApiKey ?? Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY");
-            var endpoint = !string.IsNullOrWhiteSpace(data.llmEndpoint)? data.llmEndpoint: Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT");
-            var deployment = !string.IsNullOrWhiteSpace(data.llmDeployment)? data.llmDeployment: Environment.GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT");
-            var apiKey = !string.IsNullOrWhiteSpace(data.llmApiKey)? data.llmApiKey: Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY");
+            new { role = "system", content = systemPrompt },
+            new { role = "user", content = userPrompt }
+        },
+        temperature = 0.02,
+        max_completion_tokens = 8192
+    };
 
-            if (string.IsNullOrWhiteSpace(endpoint) || string.IsNullOrWhiteSpace(apiKey))
-            {
-                Console.WriteLine("[LLM] ⚠ Azure OpenAI not configured. Set AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_API_KEY, or add llmEndpoint/llmApiKey to event.json.");
-                return null;
-            }
+    var url = $"{_endpoint}/openai/deployments/{_deployment}/chat/completions?api-version={_apiVersion}";
+    var json = JsonSerializer.Serialize(requestBody);
+    var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
 
-            return new LLMCodeMigrator(endpoint, deployment!, apiKey!);
-        }
-
-        public async Task<List<FileMigrationResult>> MigrateFilesAsync(
-            List<FileUsageReport> usageReports,
-            string packageName,
-            string fromVersion,
-            string toVersion)
+    // 🔁 Retry logic (NEW)
+    for (int attempt = 1; attempt <= MaxRetries; attempt++)
+    {
+        try
         {
-            var results = new List<FileMigrationResult>();
-
-            foreach (var report in usageReports)
-            {
-                // Console.WriteLine($"[LLM] Migrating: {Path.GetFileName(report.FilePath)}...");//error
-                   _output.WriteLine($"[LLM] Migrating: {Path.GetFileName(report.FilePath)}...");//error
-
-                var result = await MigrateSingleFileWithRetryAsync(
-                    report, packageName, fromVersion, toVersion);
-
-                results.Add(result);
-
-                if (result.MigrationSucceeded && !result.RequiresManualReview)
-                {
-                    // Console.WriteLine($"[LLM] ✅ Done: {Path.GetFileName(report.FilePath)}");
-                    _output.WriteLine($"[LLM] ✅ Done: {Path.GetFileName(report.FilePath)}");
-                    foreach (var c in result.ChangesApplied)
-                    {
-                        // Console.WriteLine($"       • {c}");
-                        _output.WriteLine($"       • {c}");
-                    }
-                }
-                else if (result.RequiresManualReview)
-                {
-                    // Console.WriteLine($"[LLM] ⚠ Manual review: {result.ManualReviewReason}");
-                    _output.WriteLine($"[LLM] ⚠ Manual review: {result.ManualReviewReason}");
-                }
-                else
-                {
-                    // Console.WriteLine($"[LLM] ❌ Failed: {result.ErrorMessage}");
-                    _output.WriteLine($"[LLM] ❌ Failed: {result.ErrorMessage}");
-                }
-            }
-
-            return results;
-        }
-
-        private async Task<FileMigrationResult> MigrateSingleFileWithRetryAsync(
-            FileUsageReport report,
-            string packageName,
-            string fromVersion,
-            string toVersion)
-        {
-            FileMigrationResult? lastResult = null;
-
-            for (int attempt = 1; attempt <= MaxRetries; attempt++)
-            {
-                try
-                {
-                    lastResult = await MigrateSingleFileAsync(
-                        report, packageName, fromVersion, toVersion);
-
-                    if (lastResult.MigrationSucceeded)
-                    {
-                        return lastResult;
-                    }
-
-                    // Console.WriteLine($"[LLM] Attempt {attempt}/{MaxRetries} failed. Retrying...");
-                    _output.WriteLine($"[LLM] Attempt {attempt}/{MaxRetries} failed. " +
-                             $"Reason: {lastResult.ErrorMessage}");
-                    //_output.WriteLine($"[LLM] Attempt {attempt}/{MaxRetries} failed. Retrying...");
-                    await Task.Delay(TimeSpan.FromSeconds(attempt * 2));
-                }
-                catch (Exception ex)
-                {
-                    // Console.WriteLine($"[LLM] Attempt {attempt}/{MaxRetries} threw: {ex.Message}");
-                    var fullError = ex.InnerException != null
-                ? $"{ex.Message} → {ex.InnerException.Message}"
-                : ex.Message;
-                    _output.WriteLine($"[LLM] Attempt {attempt}/{MaxRetries} threw: {ex.Message}");
-                    //_output.WriteLine($"[LLM] Attempt {attempt}/{MaxRetries} threw: {fullError}");
-                    //_output.WriteLine($"[LLM] Exception type: {ex.GetType().FullName}");
-                    await Task.Delay(TimeSpan.FromSeconds(attempt * 2));
-
-                    lastResult = new FileMigrationResult
-                    {
-                        FilePath = report.FilePath,
-                        MigrationSucceeded = false,
-                        ErrorMessage = ex.Message
-                    };
-                }
-            }
-
-            return lastResult ?? new FileMigrationResult
-            {
-                FilePath = report.FilePath,
-                MigrationSucceeded = false,
-                ErrorMessage = "All retry attempts exhausted."
-            };
-        }
-
-        private async Task<FileMigrationResult> MigrateSingleFileAsync(
-            FileUsageReport report,
-            string packageName,
-            string fromVersion,
-            string toVersion)
-        {
-            var namespacesUsed = string.Join(", ", report.MatchedNamespaces);
-            var affectedLineNums = string.Join(", ", report.MatchedLineNumbers);
-            var fileName = Path.GetFileName(report.FilePath);
-
-            var systemPrompt = BuildMigrationSystemPrompt(packageName, fromVersion, toVersion);
-            var userPrompt = BuildMigrationUserPrompt(
-                fileName,
-                packageName,
-                fromVersion,
-                toVersion,
-                namespacesUsed,
-                affectedLineNums,
-                report.OriginalContent);
-
-            var requestBody = new
-            {
-                messages = new[]
-                {
-                    new { role = "system", content = systemPrompt },
-                    new { role = "user", content = userPrompt }
-                },
-                temperature = 0.05,
-                max_completion_tokens = 8192,
-                response_format = new { type = "json_object" }
-            };
-
-            var url = $"{_endpoint}/openai/deployments/{_deployment}/chat/completions?api-version={_apiVersion}";
-            var json = JsonSerializer.Serialize(requestBody);
-            var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
-
             var response = await _httpClient.PostAsync(url, httpContent);
 
             if (!response.IsSuccessStatusCode)
             {
-                var errorBody = await response.Content.ReadAsStringAsync();
-                return new FileMigrationResult
-                {
-                    FilePath = report.FilePath,
-                    MigrationSucceeded = false,
-                    ErrorMessage = $"HTTP {(int)response.StatusCode}: {errorBody}"
-                };
-            }
-
-            var responseJson = await response.Content.ReadAsStringAsync();
-            return ParseLLMResponse(responseJson, report.FilePath);
-        }
-
-        public async Task<string?> SelfCorrectBuildErrorsAsync(
-            string fileContent,
-            string buildErrors,
-            string filePath)
-        {
-            // Console.WriteLine($"[LLM] Self-correcting: {Path.GetFileName(filePath)}...");
-            _output.WriteLine($"[LLM] Self-correcting: {Path.GetFileName(filePath)}...");
-
-            var systemPrompt = BuildSelfCorrectionSystemPrompt();
-            var userPrompt = BuildSelfCorrectionUserPrompt(fileContent, buildErrors, filePath);
-
-            var requestBody = new
-            {
-                messages = new[]
-                {
-                    new { role = "system", content = systemPrompt },
-                    new { role = "user", content = userPrompt }
-                },
-                temperature = 0.02,
-                max_completion_tokens = 8192
-            };
-
-            var url = $"{_endpoint}/openai/deployments/{_deployment}/chat/completions?api-version={_apiVersion}";
-            var json = JsonSerializer.Serialize(requestBody);
-            var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var response = await _httpClient.PostAsync(url, httpContent);
-            if (!response.IsSuccessStatusCode)
-            {
-                return null;
+                _output.WriteLine($"[LLM-FIX] Attempt {attempt} failed: {response.StatusCode}");
+                await Task.Delay(1000 * attempt);
+                continue;
             }
 
             var responseJson = await response.Content.ReadAsStringAsync();
 
             using var doc = JsonDocument.Parse(responseJson);
+
             var content = doc.RootElement
                 .GetProperty("choices")[0]
                 .GetProperty("message")
                 .GetProperty("content")
                 .GetString();
 
-            return string.IsNullOrWhiteSpace(content) ? null : StripCodeFences(content);
-        }
+            var cleaned = string.IsNullOrWhiteSpace(content)
+                ? null
+                : StripCodeFences(content);
 
-        private static string BuildMigrationSystemPrompt(
-    string packageName,
-    string fromVersion,
-    string toVersion)
-        {
-            var systemPrompt = new StringBuilder();
-
-            systemPrompt.AppendLine("You are an expert C# package-migration agent for existing .NET projects.");
-            systemPrompt.AppendLine();
-            systemPrompt.AppendLine($"Your only task is to update C# source code impacted by migrating {packageName} from version {fromVersion} to version {toVersion}.");
-            systemPrompt.AppendLine();
-            systemPrompt.AppendLine("NON-NEGOTIABLE OUTPUT CONTRACT");
-            systemPrompt.AppendLine("1. Return ONLY one valid JSON object.");
-            systemPrompt.AppendLine("2. Do NOT output markdown, code fences, backticks, explanations, headings, notes, or prose before or after the JSON.");
-            systemPrompt.AppendLine("3. The JSON must contain exactly these properties:");
-            systemPrompt.AppendLine("   - migratedCode");
-            systemPrompt.AppendLine("   - changesApplied");
-            systemPrompt.AppendLine("   - requiresManualReview");
-            systemPrompt.AppendLine("   - manualReviewReason");
-            systemPrompt.AppendLine("4. Do NOT include any additional properties.");
-            systemPrompt.AppendLine("5. The JSON must be parseable by a strict JSON parser.");
-            systemPrompt.AppendLine();
-            systemPrompt.AppendLine("MIGRATION RULES");
-            systemPrompt.AppendLine("1. Change ONLY code directly required by the package upgrade.");
-            systemPrompt.AppendLine("2. Preserve existing business logic, control flow, method names, class names, namespaces, and behavior unless a package-breaking change requires an adjustment.");
-            systemPrompt.AppendLine("3. Handle compile-time API breaks, renamed members, changed overloads, obsolete APIs, and required signature changes caused by the package upgrade.");
-            systemPrompt.AppendLine("4. If no migration change is required, return the original file unchanged in migratedCode.");
-            systemPrompt.AppendLine("5. Do NOT make stylistic refactors.");
-            systemPrompt.AppendLine("6. Do NOT reformat unrelated code.");
-            systemPrompt.AppendLine("7. Do NOT add, remove, or reorder using directives unless required for the migration.");
-            systemPrompt.AppendLine("8. Do NOT introduce new libraries, frameworks, helper classes, DTOs, interfaces, wrappers, or extension methods unless they are strictly required for compilation after the upgrade.");
-            systemPrompt.AppendLine("9. Do NOT remove existing comments unless a changed API makes the comment incorrect.");
-            systemPrompt.AppendLine("10. Do NOT truncate the file. migratedCode must contain the COMPLETE final file content.");
-            systemPrompt.AppendLine();
-
-            // ✅ ADD THIS NEW SECTION — Entry Point Preservation
-            systemPrompt.AppendLine("ENTRY POINT PRESERVATION RULES  ← NEW");
-            systemPrompt.AppendLine("1. If the file contains top-level statements (executable statements before any class or namespace declaration), you MUST preserve ALL of them exactly as-is in migratedCode.");
-            systemPrompt.AppendLine("2. If the file contains a static Main() method, you MUST preserve it exactly.");
-            systemPrompt.AppendLine("3. NEVER remove, rename, restructure, or move the program entry point.");
-            systemPrompt.AppendLine("4. NEVER convert a file that uses top-level statements into a class-only file.");
-            systemPrompt.AppendLine("5. Top-level statements and class definitions CAN coexist in the same file — preserve both.");
-            systemPrompt.AppendLine("6. The top-level statements are NOT part of any class — do NOT wrap them inside a class.");
-            systemPrompt.AppendLine();
-
-            systemPrompt.AppendLine("C# CORRECTNESS RULES");
-            systemPrompt.AppendLine("1. ALWAYS include a namespace declaration at the top");
-            systemPrompt.AppendLine("1. migratedCode must be valid compilable C# source.");
-            
-            systemPrompt.AppendLine("2. Preserve the file's existing namespace and public type names.");
-            systemPrompt.AppendLine("3. Do NOT invent members or APIs that are not needed.");
-            systemPrompt.AppendLine("4. Keep all braces, parentheses, brackets, generic angle brackets, quotes, and semicolons balanced.");
-            systemPrompt.AppendLine("5. Ensure all strings are correctly escaped.");
-            systemPrompt.AppendLine("6. Do NOT emit invalid XML doc comments.");
-            systemPrompt.AppendLine("7. Do NOT emit markdown fences anywhere, including inside migratedCode.");
-            systemPrompt.AppendLine();
-            systemPrompt.AppendLine("REVIEW FLAG RULES");
-            systemPrompt.AppendLine("1. Set requiresManualReview to true only when a safe migration cannot be completed confidently from the provided file.");
-            systemPrompt.AppendLine("2. If requiresManualReview is true, still return the best safe migratedCode you can produce.");
-            systemPrompt.AppendLine("3. manualReviewReason must be empty when requiresManualReview is false.");
-            systemPrompt.AppendLine("4. changesApplied must be a concise list of actual migration edits. If no edits were needed, return an empty array.");
-            systemPrompt.AppendLine();
-            systemPrompt.AppendLine("FINAL INSTRUCTION");
-            systemPrompt.AppendLine("Return ONLY the JSON object.");
-
-            return systemPrompt.ToString();
-        }
-
-        private static string BuildMigrationUserPrompt(
-    string fileName,
-    string packageName,
-    string fromVersion,
-    string toVersion,
-    string namespacesUsed,
-    string affectedLineNums,
-    string originalContent)
-        {
-            var userPrompt = new StringBuilder();
-
-            userPrompt.AppendLine("Migrate the following C# file for a NuGet package upgrade.");
-            userPrompt.AppendLine();
-            userPrompt.AppendLine($"File: {fileName}");
-            userPrompt.AppendLine($"Package: {packageName}");
-            userPrompt.AppendLine($"From version: {fromVersion}");
-            userPrompt.AppendLine($"To version: {toVersion}");
-            userPrompt.AppendLine($"Matched namespaces: {namespacesUsed}");
-            userPrompt.AppendLine($"Affected lines: {affectedLineNums}");
-            userPrompt.AppendLine();
-            userPrompt.AppendLine("Requirements:");
-            userPrompt.AppendLine("- Return ONLY one valid JSON object");
-            userPrompt.AppendLine("- Use exactly these properties: migratedCode, changesApplied, requiresManualReview, manualReviewReason");
-            userPrompt.AppendLine("- migratedCode must contain the COMPLETE migrated C# file");
-            userPrompt.AppendLine("- Preserve business logic");
-            userPrompt.AppendLine("- Change only package-affected code");
-            userPrompt.AppendLine("- If no change is needed, return the original file unchanged");
-            userPrompt.AppendLine("- Do not output markdown");
-            userPrompt.AppendLine("- PRESERVE all top-level statements and any static Main() entry point — do NOT remove or wrap them in a class");
-            userPrompt.AppendLine();
-            userPrompt.AppendLine("ORIGINAL FILE CONTENT START");
-            userPrompt.AppendLine(originalContent);
-            userPrompt.AppendLine("ORIGINAL FILE CONTENT END");
-
-            return userPrompt.ToString();
-        }
-
-        private static string BuildSelfCorrectionSystemPrompt()
-        {
-            var systemPrompt = new StringBuilder();
-
-            systemPrompt.AppendLine("You are an expert C# compiler-error correction agent for existing .NET projects.");
-            systemPrompt.AppendLine();
-            systemPrompt.AppendLine("Your task is to fix ONLY the build errors shown for the provided C# file.");
-            systemPrompt.AppendLine();
-            systemPrompt.AppendLine("NON-NEGOTIABLE OUTPUT CONTRACT");
-            systemPrompt.AppendLine("1. Output ONLY raw C# code.");
-            systemPrompt.AppendLine("2. Do NOT output markdown, code fences, backticks, explanations, headings, notes, bullet points, JSON, XML, or prose before or after the code.");
-            systemPrompt.AppendLine("3. Return the COMPLETE corrected file content, not a diff and not a partial snippet.");
-            systemPrompt.AppendLine();
-            systemPrompt.AppendLine("FIX RULES");
-            systemPrompt.AppendLine("1. Fix ONLY the reported build errors.");
-            systemPrompt.AppendLine("2. Do NOT change business logic unless a minimal syntactic or API fix is required to resolve the build errors.");
-            systemPrompt.AppendLine("3. Preserve namespaces, public type names, member names, and code structure unless a compile fix requires otherwise.");
-            systemPrompt.AppendLine("4. Do NOT introduce unrelated refactors.");
-            systemPrompt.AppendLine("5. Do NOT add new dependencies unless required for compilation.");
-            systemPrompt.AppendLine("6. Do NOT remove or add using directives unless required for compilation.");
-            systemPrompt.AppendLine();
-            systemPrompt.AppendLine("C# CORRECTNESS RULES");
-            systemPrompt.AppendLine("1. Ensure balanced braces, parentheses, brackets, angle brackets, quotes, and semicolons.");
-            systemPrompt.AppendLine("2. Ensure all strings are closed and correctly escaped.");
-            systemPrompt.AppendLine("3. Ensure the result is valid compilable C#.");
-            systemPrompt.AppendLine("4. Do NOT emit markdown fences anywhere.");
-            systemPrompt.AppendLine();
-            systemPrompt.AppendLine("FINAL INSTRUCTION");
-            systemPrompt.AppendLine("Return ONLY the corrected complete C# source file.");
-
-            return systemPrompt.ToString();
-        }
-
-        private static string BuildSelfCorrectionUserPrompt(
-            string fileContent,
-            string buildErrors,
-            string filePath)
-        {
-            var userPrompt = new StringBuilder();
-
-            userPrompt.AppendLine("Fix the build errors in this migrated C# file.");
-            userPrompt.AppendLine();
-            userPrompt.AppendLine($"File: {Path.GetFileName(filePath)}");
-            userPrompt.AppendLine();
-            userPrompt.AppendLine("Requirements:");
-            userPrompt.AppendLine("- Return ONLY the corrected complete C# file");
-            userPrompt.AppendLine("- Fix only the reported build errors");
-            userPrompt.AppendLine("- Preserve business logic");
-            userPrompt.AppendLine("- Do not output markdown");
-            userPrompt.AppendLine();
-            userPrompt.AppendLine("BUILD ERRORS START");
-            userPrompt.AppendLine(buildErrors);
-            userPrompt.AppendLine("BUILD ERRORS END");
-            userPrompt.AppendLine();
-            userPrompt.AppendLine("FILE CONTENT START");
-            userPrompt.AppendLine(fileContent);
-            userPrompt.AppendLine("FILE CONTENT END");
-
-            return userPrompt.ToString();
-        }
-
-        private static string StripCodeFences(string raw)
-        {
-            var lines = raw.Split('\n').ToList();
-
-            if (lines.Count > 0 && lines[0].TrimStart().StartsWith("```", StringComparison.Ordinal))
+            // 🔒 Safety check (NEW)
+            if (!string.IsNullOrWhiteSpace(cleaned))
             {
-                lines.RemoveAt(0);
-            }
-
-            if (lines.Count > 0 && lines[^1].Trim() == "```")
-            {
-                lines.RemoveAt(lines.Count - 1);
-            }
-
-            return string.Join('\n', lines).Trim();
-        }
-
-        private static FileMigrationResult ParseLLMResponse(
-            string responseJson,
-            string filePath)
-        {
-            try
-            {
-                using var outerDoc = JsonDocument.Parse(responseJson);
-                var content = outerDoc.RootElement
-                    .GetProperty("choices")[0]
-                    .GetProperty("message")
-                    .GetProperty("content")
-                    .GetString() ?? string.Empty;
-
-                using var innerDoc = JsonDocument.Parse(content);
-                var root = innerDoc.RootElement;
-
-                var migratedCode = root.TryGetProperty("migratedCode", out var mc)
-                    ? mc.GetString() ?? string.Empty
-                    : string.Empty;
-
-                var requireReview = root.TryGetProperty("requiresManualReview", out var rev)
-                    && rev.GetBoolean();
-
-                var reviewReason = root.TryGetProperty("manualReviewReason", out var rr)
-                    ? rr.GetString() ?? string.Empty
-                    : string.Empty;
-
-                var changes = new List<string>();
-                if (root.TryGetProperty("changesApplied", out var changesEl) &&
-                    changesEl.ValueKind == JsonValueKind.Array)
+                if (!cleaned.Contains("class") && !cleaned.Contains("namespace"))
                 {
-                    foreach (var c in changesEl.EnumerateArray())
-                    {
-                        var s = c.GetString();
-                        if (!string.IsNullOrWhiteSpace(s))
-                        {
-                            changes.Add(s);
-                        }
-                    }
+                    _output.WriteLine("[LLM-FIX] Suspicious output ignored.");
+                    continue;
                 }
 
-                return new FileMigrationResult
-                {
-                    FilePath = filePath,
-                    MigratedContent = migratedCode,
-                    ChangesApplied = changes,
-                    RequiresManualReview = requireReview,
-                    ManualReviewReason = reviewReason,
-                    MigrationSucceeded = !string.IsNullOrWhiteSpace(migratedCode)
-                };
-            }
-            catch (Exception ex)
-            {
-                return new FileMigrationResult
-                {
-                    FilePath = filePath,
-                    MigrationSucceeded = false,
-                    ErrorMessage = $"Failed to parse LLM response: {ex.Message}. Raw: {responseJson[..Math.Min(300, responseJson.Length)]}"
-                };
+                return cleaned;
             }
         }
-        public async Task<FileMigrationResult> MigrateLargeFileBySnippetAsync(
-                FileUsageReport report,
-                string packageName,
-                string fromVersion,
-                string toVersion)
-            {
-                var originalContent = report.OriginalContent ?? string.Empty;
+        catch (Exception ex)
+        {
+            _output.WriteLine($"[LLM-FIX] Attempt {attempt} exception: {ex.Message}");
+        }
 
-                // Build a focused snippet from matched lines
-                var lines = originalContent.Split('\n');
-                var snippetLines = report.MatchedLineNumbers
-                    .Where(n => n >= 1 && n <= lines.Length)
-                    .SelectMany(n => new[]
-                    {
-                        Math.Max(0, n - 3),    // 3 lines before
-                        n - 1,                  // the matched line (0-indexed)
-                        Math.Min(lines.Length - 1, n + 2)  // 2 lines after
-                    })
-                    .Distinct()
-                    .OrderBy(i => i)
-                    .Select(i => lines[i]);
-
-                var snippet = string.Join("\n", snippetLines);
-
-                // Ask LLM to migrate just the snippet
-                var systemPrompt = BuildMigrationSystemPrompt(packageName, fromVersion, toVersion);
-                var userPrompt = $"Migrate only this snippet from {packageName} {fromVersion} to {toVersion}.\n\nSNIPPET:\n{snippet}\n\nReturn JSON with: updatedSnippet, changesApplied, requiresManualReview, manualReviewReason";
-
-                var requestBody = new
-                {
-                    messages = new[]
-                    {
-                        new { role = "system", content = systemPrompt },
-                        new { role = "user", content = userPrompt }
-                    },
-                    temperature = 0.05,
-                    max_completion_tokens = 4096,
-                    response_format = new { type = "json_object" }
-                };
-
-                var url = $"{_endpoint}/openai/deployments/{_deployment}/chat/completions?api-version={_apiVersion}";
-                var json = System.Text.Json.JsonSerializer.Serialize(requestBody);
-                var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
-
-                var response = await _httpClient.PostAsync(url, httpContent);
-                if (!response.IsSuccessStatusCode)
-                {
-                    return new FileMigrationResult
-                    {
-                        FilePath = report.FilePath,
-                        MigrationSucceeded = false,
-                        ErrorMessage = $"HTTP {(int)response.StatusCode}"
-                    };
-                }
-
-                var responseJson = await response.Content.ReadAsStringAsync();
-
-                try
-                {
-                    using var outerDoc = System.Text.Json.JsonDocument.Parse(responseJson);
-                    var content = outerDoc.RootElement
-                        .GetProperty("choices")[0]
-                        .GetProperty("message")
-                        .GetProperty("content")
-                        .GetString() ?? string.Empty;
-
-                    using var innerDoc = System.Text.Json.JsonDocument.Parse(content);
-                    var root = innerDoc.RootElement;
-
-                    var updatedSnippet = root.TryGetProperty("updatedSnippet", out var us)
-                        ? us.GetString() ?? string.Empty
-                        : string.Empty;
-
-                    // Replace the original snippet with the updated snippet in the full file
-                    var migratedContent = string.IsNullOrWhiteSpace(updatedSnippet)
-                        ? originalContent
-                        : originalContent.Replace(snippet, updatedSnippet);
-
-                    var changes = new List<string>();
-                    if (root.TryGetProperty("changesApplied", out var changesEl) &&
-                        changesEl.ValueKind == System.Text.Json.JsonValueKind.Array)
-                    {
-                        foreach (var c in changesEl.EnumerateArray())
-                        {
-                            var s = c.GetString();
-                            if (!string.IsNullOrWhiteSpace(s)) changes.Add(s);
-                        }
-                    }
-
-                    return new FileMigrationResult
-                    {
-                        FilePath = report.FilePath,
-                        MigratedContent = migratedContent,
-                        ChangesApplied = changes,
-                        MigrationSucceeded = !string.IsNullOrWhiteSpace(updatedSnippet),
-                        RequiresManualReview = root.TryGetProperty("requiresManualReview", out var rev) && rev.GetBoolean(),
-                        ManualReviewReason = root.TryGetProperty("manualReviewReason", out var rr) ? rr.GetString() ?? string.Empty : string.Empty
-                    };
-                }
-                catch (Exception ex)
-                {
-                    return new FileMigrationResult
-                    {
-                        FilePath = report.FilePath,
-                        MigrationSucceeded = false,
-                        ErrorMessage = $"Snippet parse failed: {ex.Message}"
-                    };
-                }
-            }
+        await Task.Delay(1000 * attempt);
     }
+
+    _output.WriteLine("[LLM-FIX] All retries failed.");
+    return null;
 }
