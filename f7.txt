@@ -1,44 +1,4 @@
-Console.WriteLine("[Test] Building main project...");
-var (mainBuildCode, mainBuildOut, mainBuildErr) =
-    await RunDotnetAsync($"build \"{_projectPath}\"");
-
-// 🔁 RETRY LOOP STARTS HERE
-int retry = 0;
-
-while (retry < 2 && mainBuildCode != 0)
-{
-    retry++;
-    Console.WriteLine($"[Fix] Attempt {retry} to fix build errors...");
-
-    foreach (var file in Directory.GetFiles(_projectFolder, "*.cs", SearchOption.AllDirectories))
-    {
-        var code = File.ReadAllText(file);
-
-        var fixedCode = await _migrator.SelfCorrectBuildErrorsAsync(
-            code,
-            mainBuildErr,
-            file);
-
-        if (!string.IsNullOrWhiteSpace(fixedCode))
-        {
-            File.WriteAllText(file, fixedCode);
-        }
-    }
-
-    // 🔁 Rebuild after fix
-    Console.WriteLine("[Fix] Rebuilding after fix...");
-    (mainBuildCode, mainBuildOut, mainBuildErr) =
-        await RunDotnetAsync($"build \"{_projectPath}\"");
-}
-
-// ❌ If still failing after retries
-if (mainBuildCode != 0)
-{
-    Console.WriteLine("[Fix] ❌ Build still failing after retries.");
-    result.BuildSucceeded = false;
-    result.BuildErrors = mainBuildErr;
-    return result;
-}
-
-// ✅ Build success
-result.BuildSucceeded = true;
+Severity	Code	Description	Project	File	Line	Suppression State	Details
+Error (active)	CS0103	The name '_migrator' does not exist in the current context	EntityAttribute_POC	C:\R\Projects\roslyn\EntityAttribute_POC\TestOrchestrator.cs	99		
+Severity	Code	Description	Project	File	Line	Suppression State	Details
+Error (active)	CS0103	The name '_migrator' does not exist in the current context	EntityAttribute_POC	C:\R\Projects\roslyn\EntityAttribute_POC\TestOrchestrator.cs	196		
