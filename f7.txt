@@ -1,28 +1,11 @@
-int testRetry = 0;
+if (!File.Exists(path))
+            throw new FileNotFoundException($"Config file not found: {path}");
 
-while (testRetry < 2 && testCode != 0)
-{
-    testRetry++;
+        var json = File.ReadAllText(path);
 
-    Console.WriteLine($"[Fix] Test failed. Attempt {testRetry}...");
+        var data = JsonSerializer.Deserialize<EventData>(json);
 
-    foreach (var file in Directory.GetFiles(_projectFolder, "*.cs", SearchOption.AllDirectories))
-    {
-        var code = File.ReadAllText(file);
+        if (data == null)
+            throw new Exception("Failed to load EventData from JSON");
 
-        var fixedCode = await _migrator.SelfCorrectBuildErrorsAsync(
-            code,
-            testErr,
-            file);
-
-        if (!string.IsNullOrWhiteSpace(fixedCode))
-        {
-            File.WriteAllText(file, fixedCode);
-        }
-    }
-
-    Console.WriteLine("[Fix] Re-running tests...");
-
-    (testCode, testOut, testErr) =
-        await RunDotnetAsync($"test \"{testFolder}\"");
-}
+        return data;
