@@ -1,1 +1,21 @@
-C:\Program Files\dotnet\sdk\10.0.202\Microsoft.Common.CurrentVersion.targets(5395,5): error MSB3030: Could not copy the file "C:\R\Projects\demoproj\demoproj\ConsoleApp1\bin\Debug\net10.0\ConsoleApp1.runtimeconfig.json" because it was not found.
+// ── Step 2: Build MAIN project ─────────────────────────────────────
+
+// 🔥 Get main project path (remove .Tests if present)
+var mainProjectPath = _projectPath.Replace(".Tests", "");
+
+Console.WriteLine("[Test] Running dotnet build (MAIN project)...");
+var (buildCode, buildOut, buildErr) = await RunDotnetAsync(
+    $"build \"{mainProjectPath}\" --no-restore --verbosity normal");
+
+result.BuildOutput = buildOut + buildErr;
+result.BuildSucceeded = buildCode == 0;
+
+if (!result.BuildSucceeded)
+{
+    Console.WriteLine("[Test] ❌ Main project build failed.");
+    result.BuildErrors = buildErr;
+    result.ParsedBuildErrors = ParseBuildErrors(buildOut + buildErr);
+    return result;
+}
+
+Console.WriteLine("[Test] ✅ Main project build succeeded.");
