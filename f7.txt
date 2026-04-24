@@ -1,11 +1,6 @@
-Console.WriteLine("[Test] Building main project...");
-var (mainBuildCode, mainBuildOut, mainBuildErr) =
-    await RunDotnetAsync($"build \"{_projectPath}\"");
-
-// 🔥 If build fails → FIX instead of RETURN
-if (mainBuildCode != 0)
+if (testCode != 0)
 {
-    Console.WriteLine("[Fix] Attempting to auto-fix build errors...");
+    Console.WriteLine("[Fix] Attempting to fix test failures...");
 
     foreach (var file in Directory.GetFiles(_projectFolder, "*.cs", SearchOption.AllDirectories))
     {
@@ -13,7 +8,7 @@ if (mainBuildCode != 0)
 
         var fixedCode = await _migrator.SelfCorrectBuildErrorsAsync(
             code,
-            mainBuildErr,
+            testErr,
             file);
 
         if (!string.IsNullOrWhiteSpace(fixedCode))
@@ -22,19 +17,11 @@ if (mainBuildCode != 0)
         }
     }
 
-    // 🔁 Retry build
-    Console.WriteLine("[Fix] Rebuilding after fix...");
-    (mainBuildCode, mainBuildOut, mainBuildErr) =
-        await RunDotnetAsync($"build \"{_projectPath}\"");
-
-    if (mainBuildCode != 0)
-    {
-        Console.WriteLine("[Fix] ❌ Still failing after fix.");
-        result.BuildSucceeded = false;
-        result.BuildErrors = mainBuildErr;
-        return result;
-    }
+    // 🔁 Retry test
+    Console.WriteLine("[Fix] Re-running tests...");
+    (testCode, testOut, testErr) =
+        await RunDotnetAsync($"test \"{testFolder}\"");
 }
 
-// ✅ If reached here → build succeeded
-result.BuildSucceeded = true;
+// ✅ FINAL TEST RESULT SET HERE
+result.TestsSucceeded = testCode == 0;
