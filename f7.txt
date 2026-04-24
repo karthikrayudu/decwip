@@ -1,2 +1,28 @@
-systemPrompt.AppendLine("1. Preserve the existing namespace structure if present.");
-systemPrompt.AppendLine("2. Do NOT force-add a namespace if the file originally does not have one.");
+int retry = 0;
+
+while (retry < 2 && mainBuildCode != 0)
+{
+    retry++;
+
+    Console.WriteLine($"[Fix] Build failed. Attempt {retry}...");
+
+    foreach (var file in Directory.GetFiles(_projectFolder, "*.cs", SearchOption.AllDirectories))
+    {
+        var code = File.ReadAllText(file);
+
+        var fixedCode = await _migrator.SelfCorrectBuildErrorsAsync(
+            code,
+            mainBuildErr,
+            file);
+
+        if (!string.IsNullOrWhiteSpace(fixedCode))
+        {
+            File.WriteAllText(file, fixedCode);
+        }
+    }
+
+    Console.WriteLine("[Fix] Rebuilding...");
+
+    (mainBuildCode, mainBuildOut, mainBuildErr) =
+        await RunDotnetAsync($"build \"{_projectPath}\"");
+}
