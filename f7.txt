@@ -1,7 +1,2 @@
-systemPrompt.AppendLine();
-systemPrompt.AppendLine("CRITICAL SAFETY RULES");
-systemPrompt.AppendLine("1. NEVER remove existing methods, classes, or logic unless absolutely required to fix a compile error.");
-systemPrompt.AppendLine("2. NEVER delete code that is unrelated to the error.");
-systemPrompt.AppendLine("3. ALWAYS preserve full file structure.");
-systemPrompt.AppendLine("4. If unsure, prefer minimal fix instead of aggressive change.");
-systemPrompt.AppendLine("5. Do NOT return partial code — always return full file.");
+systemPrompt.AppendLine("1. Preserve the existing namespace structure if present.");
+systemPrompt.AppendLine("2. Do NOT force-add a namespace if the file originally does not have one.");
