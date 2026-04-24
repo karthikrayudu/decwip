@@ -1,6 +1,14 @@
-if (testCode != 0)
+Console.WriteLine("[Test] Building main project...");
+var (mainBuildCode, mainBuildOut, mainBuildErr) =
+    await RunDotnetAsync($"build \"{_projectPath}\"");
+
+// 🔁 RETRY LOOP STARTS HERE
+int retry = 0;
+
+while (retry < 2 && mainBuildCode != 0)
 {
-    Console.WriteLine("[Fix] Attempting to fix test failures...");
+    retry++;
+    Console.WriteLine($"[Fix] Attempt {retry} to fix build errors...");
 
     foreach (var file in Directory.GetFiles(_projectFolder, "*.cs", SearchOption.AllDirectories))
     {
@@ -8,7 +16,7 @@ if (testCode != 0)
 
         var fixedCode = await _migrator.SelfCorrectBuildErrorsAsync(
             code,
-            testErr,
+            mainBuildErr,
             file);
 
         if (!string.IsNullOrWhiteSpace(fixedCode))
@@ -17,11 +25,20 @@ if (testCode != 0)
         }
     }
 
-    // 🔁 Retry test
-    Console.WriteLine("[Fix] Re-running tests...");
-    (testCode, testOut, testErr) =
-        await RunDotnetAsync($"test \"{testFolder}\"");
+    // 🔁 Rebuild after fix
+    Console.WriteLine("[Fix] Rebuilding after fix...");
+    (mainBuildCode, mainBuildOut, mainBuildErr) =
+        await RunDotnetAsync($"build \"{_projectPath}\"");
 }
 
-// ✅ FINAL TEST RESULT SET HERE
-result.TestsSucceeded = testCode == 0;
+// ❌ If still failing after retries
+if (mainBuildCode != 0)
+{
+    Console.WriteLine("[Fix] ❌ Build still failing after retries.");
+    result.BuildSucceeded = false;
+    result.BuildErrors = mainBuildErr;
+    return result;
+}
+
+// ✅ Build success
+result.BuildSucceeded = true;
