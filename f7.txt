@@ -14,11 +14,9 @@ namespace EntityAttribute_POC
         private readonly string _projectPath;   // full path to .csproj
         private readonly string _projectFolder; // folder containing .csproj
         private readonly string? _testCasePath;
-        private readonly LLMCodeMigrator _migrator;
 
         public TestOrchestrator(string projectPath, string? testCasePath = null)
         {
-            _migrator = LLMCodeMigrator.TryCreate(EventData);
             _projectPath = projectPath;
             _projectFolder = Path.GetDirectoryName(projectPath)
                 ?? throw new ArgumentException("Cannot resolve project folder.");
@@ -52,24 +50,6 @@ namespace EntityAttribute_POC
             var (restoreCode, restoreOut, restoreErr) = await RunDotnetAsync(
                 $"restore \"{_projectPath}\"");
 
-            
-            if (restoreCode != 0)
-            {
-                Console.WriteLine("[Test] ❌ Restore failed.");
-                result.BuildSucceeded = false;
-                result.BuildErrors = restoreErr;
-                result.BuildOutput = restoreOut;
-                return result;
-            }
-
-            // ── Step 2: Build MAIN project ─────────────────────────────────────
-
-            //  Get main project path (remove .Tests if present)
-            //var mainProjectPath = _projectPath.Replace(".Tests", "");
-
-            //Console.WriteLine("[Test] Running dotnet build (MAIN project)...");
-            //var (buildCode, buildOut, buildErr) = await RunDotnetAsync(
-            //    $"build \"{mainProjectPath}\" --no-restore --verbosity normal");
             //Console.WriteLine("[Test] Building main project...");
             //var (mainBuildCode, mainBuildOut, mainBuildErr) =
             //    await RunDotnetAsync($"build \"{_projectPath}\"");
@@ -82,62 +62,32 @@ namespace EntityAttribute_POC
             //    result.BuildOutput = mainBuildOut;
             //    return result;   //  STOP here if main build fails
             //}
-            Console.WriteLine("[Test] Building main project...");
-            var (mainBuildCode, mainBuildOut, mainBuildErr) =
-                await RunDotnetAsync($"build \"{_projectPath}\"");
-
-            // 🔁 RETRY LOOP STARTS HERE
-            int retry = 0;
-
-            while (retry < 2 && mainBuildCode != 0)
+            if (restoreCode != 0)
             {
-                retry++;
-                Console.WriteLine($"[Fix] Attempt {retry} to fix build errors...");
-
-                foreach (var file in Directory.GetFiles(_projectFolder, "*.cs", SearchOption.AllDirectories))
-                {
-                    var code = File.ReadAllText(file);
-
-                    var fixedCode = await _migrator.SelfCorrectBuildErrorsAsync(
-                        code,
-                        mainBuildErr,
-                        file);
-
-                    if (!string.IsNullOrWhiteSpace(fixedCode))
-                    {
-                        File.WriteAllText(file, fixedCode);
-                    }
-                }
-
-                // 🔁 Rebuild after fix
-                Console.WriteLine("[Fix] Rebuilding after fix...");
-                (mainBuildCode, mainBuildOut, mainBuildErr) =
-                    await RunDotnetAsync($"build \"{_projectPath}\"");
-            }
-
-            // ❌ If still failing after retries
-            if (mainBuildCode != 0)
-            {
-                Console.WriteLine("[Fix] ❌ Build still failing after retries.");
+                Console.WriteLine("[Test] ❌ Restore failed.");
                 result.BuildSucceeded = false;
-                result.BuildErrors = mainBuildErr;
+                result.BuildErrors = restoreErr;
+                result.BuildOutput = restoreOut;
                 return result;
             }
 
-            // ✅ Build success
-            result.BuildSucceeded = true;
+            // ── Step 2: Build MAIN project ─────────────────────────────────────
 
-            // ✅ If reached here → build succeeded
-            result.BuildSucceeded = true;
+            //  Get main project path (remove .Tests if present)
+            var mainProjectPath = _projectPath.Replace(".Tests", "");
 
-            result.BuildOutput = mainBuildOut + mainBuildErr;
-            result.BuildSucceeded = mainBuildCode == 0;
+            Console.WriteLine("[Test] Running dotnet build (MAIN project)...");
+            var (buildCode, buildOut, buildErr) = await RunDotnetAsync(
+                $"build \"{mainProjectPath}\" --no-restore --verbosity normal");
+
+            result.BuildOutput = buildOut + buildErr;
+            result.BuildSucceeded = buildCode == 0;
 
             if (!result.BuildSucceeded)
             {
                 Console.WriteLine("[Test] ❌ Main project build failed.");
-                result.BuildErrors = mainBuildErr;
-                result.ParsedBuildErrors = ParseBuildErrors(mainBuildOut + mainBuildErr);
+                result.BuildErrors = buildErr;
+                result.ParsedBuildErrors = ParseBuildErrors(buildOut + buildErr);
                 return result;
             }
 
@@ -183,39 +133,11 @@ namespace EntityAttribute_POC
             // ✅ --no-build removed intentionally: the test project is built fresh
             //    here so we never run against a stale or previously-broken DLL.
             Console.WriteLine("[Test] Running dotnet test...");
-            //var (testCode, testOut, testErr) = await RunDotnetAsync(
-            //    $"test \"{testFolder}\" --no-build --logger console;verbosity=normal");
             var (testCode, testOut, testErr) = await RunDotnetAsync(
-                $"test \"{testFolder}\" --logger console;verbosity=normal");
-            if (testCode != 0)
-            {
-                Console.WriteLine("[Fix] Attempting to fix test failures...");
+                $"test \"{testFolder}\" --no-build --logger console;verbosity=normal");
 
-                foreach (var file in Directory.GetFiles(_projectFolder, "*.cs", SearchOption.AllDirectories))
-                {
-                    var code = File.ReadAllText(file);
-
-                    var fixedCode = await _migrator.SelfCorrectBuildErrorsAsync(
-                        code,
-                        testErr,
-                        file);
-
-                    if (!string.IsNullOrWhiteSpace(fixedCode))
-                    {
-                        File.WriteAllText(file, fixedCode);
-                    }
-                }
-
-                // 🔁 Retry test
-                Console.WriteLine("[Fix] Re-running tests...");
-                (testCode, testOut, testErr) =
-                    await RunDotnetAsync($"test \"{testFolder}\"");
-            }
-
-            // ✅ FINAL TEST RESULT SET HERE
-            result.TestsSucceeded = testCode == 0;
             result.TestOutput = testOut + testErr;
-            result.TestsSucceeded = testCode == 0 && result.BuildSucceeded ;
+            result.TestsSucceeded = testCode == 0;
 
             Console.WriteLine(result.TestsSucceeded
                 ? "[Test] ✅ All tests passed."
@@ -391,87 +313,4 @@ namespace EntityAttribute_POC
             return (process.ExitCode, stdOut.ToString(), stdErr.ToString());
         }
     }
-}
-public async Task<string?> SelfCorrectBuildErrorsAsync(
-    string fileContent,
-    string buildErrors,
-    string filePath)
-{
-    _output.WriteLine($"[LLM] Self-correcting: {Path.GetFileName(filePath)}...");
-
-    // 🔒 Safety: skip if no errors
-    if (string.IsNullOrWhiteSpace(buildErrors))
-    {
-        _output.WriteLine("[LLM-FIX] No build errors provided. Skipping fix.");
-        return null;
-    }
-
-    var systemPrompt = BuildSelfCorrectionSystemPrompt();
-    var userPrompt = BuildSelfCorrectionUserPrompt(fileContent, buildErrors, filePath);
-
-    var requestBody = new
-    {
-        messages = new[]
-        {
-            new { role = "system", content = systemPrompt },
-            new { role = "user", content = userPrompt }
-        },
-        temperature = 0.02,
-        max_completion_tokens = 8192
-    };
-
-    var url = $"{_endpoint}/openai/deployments/{_deployment}/chat/completions?api-version={_apiVersion}";
-    var json = JsonSerializer.Serialize(requestBody);
-    var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
-
-    // 🔁 Retry logic (NEW)
-    for (int attempt = 1; attempt <= MaxRetries; attempt++)
-    {
-        try
-        {
-            var response = await _httpClient.PostAsync(url, httpContent);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                _output.WriteLine($"[LLM-FIX] Attempt {attempt} failed: {response.StatusCode}");
-                await Task.Delay(1000 * attempt);
-                continue;
-            }
-
-            var responseJson = await response.Content.ReadAsStringAsync();
-
-            using var doc = JsonDocument.Parse(responseJson);
-
-            var content = doc.RootElement
-                .GetProperty("choices")[0]
-                .GetProperty("message")
-                .GetProperty("content")
-                .GetString();
-
-            var cleaned = string.IsNullOrWhiteSpace(content)
-                ? null
-                : StripCodeFences(content);
-
-            // 🔒 Safety check (NEW)
-            if (!string.IsNullOrWhiteSpace(cleaned))
-            {
-                if (!cleaned.Contains("class") && !cleaned.Contains("namespace"))
-                {
-                    _output.WriteLine("[LLM-FIX] Suspicious output ignored.");
-                    continue;
-                }
-
-                return cleaned;
-            }
-        }
-        catch (Exception ex)
-        {
-            _output.WriteLine($"[LLM-FIX] Attempt {attempt} exception: {ex.Message}");
-        }
-
-        await Task.Delay(1000 * attempt);
-    }
-
-    _output.WriteLine("[LLM-FIX] All retries failed.");
-    return null;
 }
